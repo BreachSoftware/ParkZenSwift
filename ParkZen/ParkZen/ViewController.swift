@@ -27,7 +27,13 @@ class ViewController: UIViewController, CLLocationManagerDelegate {
     
     let manager = CMMotionActivityManager()
     
-    var previousActivity: String = "none"
+    // Struct for holding the previous activity's data.
+    struct Activity {
+        var id: String = "unknown"
+        var conf: Int = 0
+    }
+    
+    var previousActivity: Activity = Activity()
     
     var recentLocation: CLLocationCoordinate2D = CLLocationCoordinate2D()
     
@@ -44,6 +50,74 @@ class ViewController: UIViewController, CLLocationManagerDelegate {
         
         mapView.showsUserLocation = true
         
+        beginActivityMonitor()
+        
+        _ = Timer.scheduledTimer(timeInterval: 60.0, target: self, selector: #selector(ViewController.incrementAnnotations), userInfo: nil, repeats: true)
+    }
+    
+    @objc func incrementAnnotations()
+    {
+        let annotations = mapView.annotations
+        for annotation: MKAnnotation in annotations {
+            if !annotation.isKind(of: MKUserLocation.self) {
+                let str: String = (annotation.title ?? "ERR1") ?? "ERR2"
+                let num = Int(str)!
+                dropPin(annotation.coordinate, String(num+1) + " minutes")
+                mapView.removeAnnotation(annotation)
+            }
+        }
+    }
+ 
+    override func didReceiveMemoryWarning() {
+        super.didReceiveMemoryWarning()
+        // Dispose of any resources that can be recreated.
+    }
+ 
+    func locationManager(_ manager: CLLocationManager, didUpdateLocations locations: [CLLocation]) {
+        let lastLocation: CLLocation = locations[locations.count - 1]
+        self.recentLocation = lastLocation.coordinate
+ 
+        // Displays info at the top of the screen about location data.
+        latitudeLabel.text = String(format: "%.6f", lastLocation.coordinate.latitude)
+        longitudeLabel.text = String(format: "%.6f", lastLocation.coordinate.longitude)
+        altitudeLabel.text = String(format: "%.6f", lastLocation.altitude)
+        hAccuracyLabel.text = String(format: "%.6f", lastLocation.horizontalAccuracy)
+        vAccuracyLabel.text = String(format: "%.6f", lastLocation.verticalAccuracy)
+        
+        // Runs when the app is opened to center the map to the user's location.
+        if !initialized {
+            animateMap(lastLocation)
+            initialized = true
+        }
+    }
+    
+    func animateMap(_ location: CLLocation) {
+        let region = MKCoordinateRegion(center: location.coordinate, latitudinalMeters: 1000, longitudinalMeters: 1000)
+        mapView.setRegion(region, animated: true)
+    }
+    
+    func dropPin(_ coord: CLLocationCoordinate2D, _ title: String? = "0") {
+        
+        let allAnnotations = self.mapView.annotations
+        self.mapView.removeAnnotations(allAnnotations)
+
+        let myPin: MKPointAnnotation = MKPointAnnotation()
+        
+        // Set the coordinates.
+        myPin.coordinate = coord
+        
+        // Set the title.
+        myPin.title = title
+        
+        // Set subtitle.
+        myPin.subtitle = "subtitle"
+        
+        // Added pins to MapView.
+        self.mapView.addAnnotation(myPin)
+    }
+    
+    // Reports user activity on change.
+    func beginActivityMonitor() {
         manager.startActivityUpdates(to: .main) { (activity) in
             guard let activity = activity else {
                 return
@@ -70,68 +144,43 @@ class ViewController: UIViewController, CLLocationManagerDelegate {
             }
             
             if activity.unknown {
-                modes.insert("uknown")
+                modes.insert("unknown")
             }
 
             self.activitiesLabel.text = modes.joined(separator: ", ")
             
-            if(self.previousActivity == "walking" && modes.first == "stationary") {
-                self.activitiesLabel.text = "DROP A PIN"
+            if(self.previousActivity.id == "walking" && self.previousActivity.conf != 0 && modes.first != "walking" && activity.confidence.rawValue != 0) {
                 self.dropPin(self.recentLocation)
             }
+            // This is debug stuff
             else {
-                self.activitiesLabel.text = modes.first
-
+                self.activitiesLabel.text = (modes.first ?? "unknown") + String(activity.confidence.rawValue)
             }
             
-            if modes.first != "unknown" {
-                self.previousActivity = modes.first ?? self.previousActivity
+            // Checks if the confidence is high enough to warrant a change in activity, then changes it.
+            if activity.confidence.rawValue != 0 {
+                self.previousActivity.id = (modes.first ?? "unknown")
+                self.previousActivity.conf = activity.confidence.rawValue
             }
         }
     }
- 
-    override func didReceiveMemoryWarning() {
-        super.didReceiveMemoryWarning()
-        // Dispose of any resources that can be recreated.
-    }
- 
-    func locationManager(_ manager: CLLocationManager, didUpdateLocations locations: [CLLocation]) {
-        let lastLocation: CLLocation = locations[locations.count - 1]
-        self.recentLocation = lastLocation.coordinate
- 
-        latitudeLabel.text = String(format: "%.6f", lastLocation.coordinate.latitude)
-        longitudeLabel.text = String(format: "%.6f", lastLocation.coordinate.longitude)
-        altitudeLabel.text = String(format: "%.6f", lastLocation.altitude)
-        hAccuracyLabel.text = String(format: "%.6f", lastLocation.horizontalAccuracy)
-        vAccuracyLabel.text = String(format: "%.6f", lastLocation.verticalAccuracy)
-        
-        if !initialized {
-            animateMap(lastLocation)
-            initialized = true
-        }
-    }
     
-    func animateMap(_ location: CLLocation) {
-        let region = MKCoordinateRegion(center: location.coordinate, latitudinalMeters: 1000, longitudinalMeters: 1000)
-        mapView.setRegion(region, animated: true)
-    }
-    
-    func dropPin(_ coord: CLLocationCoordinate2D) {
-        print(String(coord.latitude) + " " + String(coord.longitude))
-        let myPin: MKPointAnnotation = MKPointAnnotation()
-        
-        // Set the coordinates.
-        myPin.coordinate = coord
-        
-        // Set the title.
-        myPin.title = "title"
-        
-        // Set subtitle.
-        myPin.subtitle = "subtitle"
-        
-        // Added pins to MapView.
-        self.mapView.addAnnotation(myPin)
-    }
+//    func application(_ application: UIApplication, performFetchWithCompletionHandler completionHandler: @escaping (UIBackgroundFetchResult) -> Void) {
+//        // fetch data from internet now
+//        guard let data = fetchSomeData() else {
+//            // data download failed
+//            completionHandler(.failed)
+//            return
+//        }
+//
+//        if data.isNew {
+//            // data download succeeded and is new
+//            completionHandler(.newData)
+//        } else {
+//            // data downloaded succeeded and is not new
+//            completionHandler(.noData)
+//        }
+//    }
  
 }
 
