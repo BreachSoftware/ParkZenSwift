@@ -11,6 +11,7 @@ import UIKit
 import CoreLocation
 import MapKit
 import CoreMotion
+import BackgroundTasks
  
 class ViewController: UIViewController, CLLocationManagerDelegate {
  
@@ -46,6 +47,12 @@ class ViewController: UIViewController, CLLocationManagerDelegate {
     // Maybe this can be removed if animateMap() is moved to viewDidLoad() if a location can be received on load?
     var initialized: Bool = false;
     
+    // This is probably not the best way to do this!!
+    // True only if this is a background refresh.
+    var isBackgroundRefresh: Bool = false;
+    // Also only for BG refresh, returns if location is found (so it can end the task)
+    var gotLocationInBG: Bool = false;
+    
     
     override func viewDidLoad() {
         super.viewDidLoad()
@@ -63,7 +70,16 @@ class ViewController: UIViewController, CLLocationManagerDelegate {
         // Timer to increment the pins' timer once per minute.
         _ = Timer.scheduledTimer(timeInterval: 60.0, target: self, selector: #selector(ViewController.incrementAnnotations), userInfo: nil, repeats: true)
         
+        locationManager.allowsBackgroundLocationUpdates = true
         
+        BGTaskScheduler.shared.register(forTaskWithIdentifier:
+        "sumocode.ParkZen.get_location",
+        using: nil)
+        {task in
+            self.handleAppRefresh(task: task as! BGAppRefreshTask)
+        }
+        
+        scheduleAppRefresh()
         
     }
     
@@ -71,25 +87,90 @@ class ViewController: UIViewController, CLLocationManagerDelegate {
     func application(_ application: UIApplication,
                      didFinishLaunchingWithOptions launchOptions:
         [UIApplication.LaunchOptionsKey: Any]?) -> Bool {
-       // Override point for customization after application launch.
+        // Override point for customization after application launch.
             
-       // Fetch data once an hour.
-       UIApplication.shared.setMinimumBackgroundFetchInterval(60)
+//        BGTaskScheduler.shared.register(forTaskWithIdentifier:
+//        "sumocode.ParkZen.get_location",
+//        using: nil)
+//        {task in
+//            self.handleAppRefresh(task: task as! BGAppRefreshTask)
+//        }
+        
+        
+        
+        return true
+    }
+        
 
-       // Other initialization…
-       return true
-    }
-        
-    func application(_ application: UIApplication,
-                     performFetchWithCompletionHandler completionHandler:
-                     @escaping (UIBackgroundFetchResult) -> Void) {
-        
-        // Check if location is within geofence.
-        if self.recentLocation.distance(from: myHouseCoords) < 100 {
-            print("Oh HELL yeah baybeeeee");
+    
+    
+    // Creates a request task to run a quick location check every 30 seconds
+    func scheduleAppRefresh() {
+        let request = BGAppRefreshTaskRequest(identifier: "sumocode.ParkZen.get_location")
+        // Fetch no earlier than 30 seconds from now
+        request.earliestBeginDate = Date(timeIntervalSinceNow: 5)
+        print("Scheduling...")
+        do {
+            try BGTaskScheduler.shared.submit(request)
+            print("Success!")
+        } catch {
+            print("Could not schedule app refresh: \(error)")
         }
-       
     }
+    
+    
+    // Handles the request made in scheduleAppRefresh() when it is called.
+    // When the system opens the app in the background, it calls the launch handler to run the task.
+    func handleAppRefresh(task: BGAppRefreshTask) {
+        // Schedule a new refresh task
+        scheduleAppRefresh()
+        
+        isBackgroundRefresh = true
+        
+        print("ahhhh")
+        
+        locationManager.delegate = self
+        locationManager.requestLocation()
+        
+        // Ends the task when a location is returned.
+        task.setTaskCompleted(success: gotLocationInBG)
+        
+        
+    // We're not using an operation queue, but it might be a good idea to use one.
+    // For testing, I'm gonna forgo using it.
+        
+//      // Create an operation that performs the main part of the background task
+//      let operation = RefreshAppContentsOperation()
+//
+//      // Provide an expiration handler for the background task
+//      // that cancels the operation
+//      task.expirationHandler = {
+//         operation.cancel()
+//      }
+//
+//      // Inform the system that the background task is complete
+//      // when the operation completes
+//      operation.completionBlock = {
+//         task.setTaskCompleted(success: !operation.isCancelled)
+//      }
+//
+//      // Start the operation
+//      operationQueue.addOperation(operation)
+    }
+    
+    
+    // Deprecated after iOS 13.
+    
+//    func application(_ application: UIApplication,
+//                     performFetchWithCompletionHandler completionHandler:
+//                     @escaping (UIBackgroundFetchResult) -> Void) {
+//
+//        // Check if location is within geofence.
+//        if self.recentLocation.distance(from: myHouseCoords) < 100 {
+//            print("Oh HELL yeah baybeeeee");
+//        }
+//
+//    }
     
     
     // Increments the timer on all of the pins that are not the User Location.
@@ -98,8 +179,9 @@ class ViewController: UIViewController, CLLocationManagerDelegate {
         let annotations = mapView.annotations
         for annotation: MKAnnotation in annotations {
             if !annotation.isKind(of: MKUserLocation.self) {
-                // There's gotta be a better way to take care of this.
-                let str: String = (annotation.title ?? "ERR1") ?? "ERR2"
+                // There's gotta be a better way to take care of this but I don't know
+                // type and string manipulation well enough in this language yet :p
+                let str: String = (annotation.title ?? "ERR: Bad annotation title (1)") ?? "ERR: Bad annotation title (2)"
                 let num = Int(str)!
                 dropPin(annotation.coordinate, String(num+1) + " minutes")
                 mapView.removeAnnotation(annotation)
@@ -116,6 +198,16 @@ class ViewController: UIViewController, CLLocationManagerDelegate {
     
     // Gets location whenever it is updated and updates the associated labels.
     func locationManager(_ manager: CLLocationManager, didUpdateLocations locations: [CLLocation]) {
+        
+        // Runs only if this is called from a background refresh.  Simply returns and prints the location.
+        if isBackgroundRefresh {
+            if let location = locations.first {
+                print("Found user's location: \(location)")
+                gotLocationInBG = true
+            }
+            return;
+        }
+        
         let lastLocation: CLLocation = locations[locations.count - 1]
         self.recentLocation = lastLocation
  
