@@ -33,10 +33,17 @@ class ViewController: UIViewController, CLLocationManagerDelegate {
         var conf: Int = 0
     }
     
+    // Strictly for testing.  This will be pulled from wherever we want to geofence.
+    let myHouseCoords: CLLocation = CLLocation(latitude: 30.381521, longitude: -91.206449)
+    //30.381521, -91.206449
+    
     var previousActivity: Activity = Activity()
     
-    var recentLocation: CLLocationCoordinate2D = CLLocationCoordinate2D()
+    // Holds the most recent location received from LocationManager()
+    var recentLocation: CLLocation = CLLocation()
     
+    // True immediately after it gets the first location data so that the map is only moved once.
+    // Maybe this can be removed if animateMap() is moved to viewDidLoad() if a location can be received on load?
     var initialized: Bool = false;
     
     
@@ -50,16 +57,48 @@ class ViewController: UIViewController, CLLocationManagerDelegate {
         
         mapView.showsUserLocation = true
         
+        // Begins checking for changes in activity of the user to drop pins.
         beginActivityMonitor()
         
+        // Timer to increment the pins' timer once per minute.
         _ = Timer.scheduledTimer(timeInterval: 60.0, target: self, selector: #selector(ViewController.incrementAnnotations), userInfo: nil, repeats: true)
+        
+        
+        
     }
     
+    
+    func application(_ application: UIApplication,
+                     didFinishLaunchingWithOptions launchOptions:
+        [UIApplication.LaunchOptionsKey: Any]?) -> Bool {
+       // Override point for customization after application launch.
+            
+       // Fetch data once an hour.
+       UIApplication.shared.setMinimumBackgroundFetchInterval(60)
+
+       // Other initialization…
+       return true
+    }
+        
+    func application(_ application: UIApplication,
+                     performFetchWithCompletionHandler completionHandler:
+                     @escaping (UIBackgroundFetchResult) -> Void) {
+        
+        // Check if location is within geofence.
+        if self.recentLocation.distance(from: myHouseCoords) < 100 {
+            print("Oh HELL yeah baybeeeee");
+        }
+       
+    }
+    
+    
+    // Increments the timer on all of the pins that are not the User Location.
     @objc func incrementAnnotations()
     {
         let annotations = mapView.annotations
         for annotation: MKAnnotation in annotations {
             if !annotation.isKind(of: MKUserLocation.self) {
+                // There's gotta be a better way to take care of this.
                 let str: String = (annotation.title ?? "ERR1") ?? "ERR2"
                 let num = Int(str)!
                 dropPin(annotation.coordinate, String(num+1) + " minutes")
@@ -67,15 +106,18 @@ class ViewController: UIViewController, CLLocationManagerDelegate {
             }
         }
     }
+    
  
     override func didReceiveMemoryWarning() {
         super.didReceiveMemoryWarning()
         // Dispose of any resources that can be recreated.
     }
  
+    
+    // Gets location whenever it is updated and updates the associated labels.
     func locationManager(_ manager: CLLocationManager, didUpdateLocations locations: [CLLocation]) {
         let lastLocation: CLLocation = locations[locations.count - 1]
-        self.recentLocation = lastLocation.coordinate
+        self.recentLocation = lastLocation
  
         // Displays info at the top of the screen about location data.
         latitudeLabel.text = String(format: "%.6f", lastLocation.coordinate.latitude)
@@ -91,11 +133,15 @@ class ViewController: UIViewController, CLLocationManagerDelegate {
         }
     }
     
+    
+    // Moves the map to orient it to the user's location.
     func animateMap(_ location: CLLocation) {
         let region = MKCoordinateRegion(center: location.coordinate, latitudinalMeters: 1000, longitudinalMeters: 1000)
         mapView.setRegion(region, animated: true)
     }
     
+    
+    // Creates and adds a pin to the map.
     func dropPin(_ coord: CLLocationCoordinate2D, _ title: String? = "0") {
         
         let allAnnotations = self.mapView.annotations
@@ -115,6 +161,7 @@ class ViewController: UIViewController, CLLocationManagerDelegate {
         // Added pins to MapView.
         self.mapView.addAnnotation(myPin)
     }
+    
     
     // Reports user activity on change.
     func beginActivityMonitor() {
@@ -150,7 +197,7 @@ class ViewController: UIViewController, CLLocationManagerDelegate {
             self.activitiesLabel.text = modes.joined(separator: ", ")
             
             if(self.previousActivity.id == "walking" && self.previousActivity.conf != 0 && modes.first != "walking" && activity.confidence.rawValue != 0) {
-                self.dropPin(self.recentLocation)
+                self.dropPin(self.recentLocation.coordinate)
             }
             // This is debug stuff
             else {
@@ -164,27 +211,12 @@ class ViewController: UIViewController, CLLocationManagerDelegate {
             }
         }
     }
-    
-//    func application(_ application: UIApplication, performFetchWithCompletionHandler completionHandler: @escaping (UIBackgroundFetchResult) -> Void) {
-//        // fetch data from internet now
-//        guard let data = fetchSomeData() else {
-//            // data download failed
-//            completionHandler(.failed)
-//            return
-//        }
-//
-//        if data.isNew {
-//            // data download succeeded and is new
-//            completionHandler(.newData)
-//        } else {
-//            // data downloaded succeeded and is not new
-//            completionHandler(.noData)
-//        }
-//    }
- 
 }
 
+
+
 extension ViewController: MKMapViewDelegate {
+    
     
     // Delegate method called when addAnnotation is done.
     func mapView(_ mapView: MKMapView, viewFor annotation: MKAnnotation) -> MKAnnotationView? {
