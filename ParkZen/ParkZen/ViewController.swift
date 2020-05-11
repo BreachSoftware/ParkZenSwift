@@ -28,6 +28,8 @@ class ViewController: UIViewController, CLLocationManagerDelegate {
     
     let manager = CMMotionActivityManager()
     
+    var geotifications: [Geotification] = []
+    
     // Struct for holding the previous activity's data.
     struct Activity {
         var id: String = "unknown"
@@ -35,7 +37,7 @@ class ViewController: UIViewController, CLLocationManagerDelegate {
     }
     
     // Strictly for testing.  This will be pulled from wherever we want to geofence.
-    let myHouseCoords: CLLocation = CLLocation(latitude: 30.381521, longitude: -91.206449)
+    let lsuCoords: CLLocation = CLLocation(latitude: 30.4133, longitude: -91.1800)
     //30.381521, -91.206449
     
     var previousActivity: Activity = Activity()
@@ -61,6 +63,7 @@ class ViewController: UIViewController, CLLocationManagerDelegate {
         locationManager.delegate = self
         locationManager.requestWhenInUseAuthorization()
         locationManager.startUpdatingLocation()
+        mapView.delegate = self
         
         mapView.showsUserLocation = true
         
@@ -81,6 +84,42 @@ class ViewController: UIViewController, CLLocationManagerDelegate {
         
         scheduleAppRefresh()
         
+        
+        geotifications.removeAll()
+        let encoder = JSONEncoder()
+        do {
+          let data = try encoder.encode(geotifications)
+          UserDefaults.standard.set(data, forKey: "savedItems")
+        } catch {
+          print("error encoding geotifications")
+        }
+        let allGeotifications = Geotification.allGeotifications()
+        allGeotifications.forEach {
+            print($0.coordinate)
+        }
+        if allGeotifications.count == 0 {
+            print("hmmmm")
+            let geotification = Geotification(coordinate: lsuCoords.coordinate, radius: 1000, identifier: "lsu", note: "Entered LSU", eventType: .onEntry)
+            add(geotification)
+            startMonitoring(geotification: geotification)
+            let encoder = JSONEncoder()
+            do {
+              let data = try encoder.encode(geotifications)
+              UserDefaults.standard.set(data, forKey: "savedItems")
+            } catch {
+              print("error encoding geotifications")
+            }
+        } else {
+            allGeotifications.forEach { add($0) }
+        }
+        
+        
+    }
+    
+    func add(_ geotification: Geotification) {
+      geotifications.append(geotification)
+      mapView.addAnnotation(geotification)
+        mapView?.addOverlay(MKCircle(center: geotification.coordinate, radius: geotification.radius))
     }
     
     
@@ -178,10 +217,10 @@ class ViewController: UIViewController, CLLocationManagerDelegate {
     {
         let annotations = mapView.annotations
         for annotation: MKAnnotation in annotations {
-            if !annotation.isKind(of: MKUserLocation.self) {
+            if !annotation.isKind(of: MKUserLocation.self) && annotation.title != nil {
                 // There's gotta be a better way to take care of this but I don't know
                 // type and string manipulation well enough in this language yet :p
-                let str: String = (annotation.title ?? "ERR: Bad annotation title (1)") ?? "ERR: Bad annotation title (2)"
+                let str: String = annotation.title!!
                 let num = Int(str)!
                 dropPin(annotation.coordinate, String(num+1) + " minutes")
                 mapView.removeAnnotation(annotation)
@@ -288,7 +327,7 @@ class ViewController: UIViewController, CLLocationManagerDelegate {
 
             self.activitiesLabel.text = modes.joined(separator: ", ")
             
-            if(self.previousActivity.id == "walking" && self.previousActivity.conf != 0 && modes.first != "walking" && activity.confidence.rawValue != 0) {
+            if(self.previousActivity.id == "driving" && self.previousActivity.conf != 0 && modes.first != "driving" && activity.confidence.rawValue != 0) {
                 self.dropPin(self.recentLocation.coordinate)
             }
             // This is debug stuff
@@ -302,6 +341,38 @@ class ViewController: UIViewController, CLLocationManagerDelegate {
                 self.previousActivity.conf = activity.confidence.rawValue
             }
         }
+    }
+    
+    func region(with geotification: Geotification) -> CLCircularRegion {
+      let region = CLCircularRegion(center: geotification.coordinate, radius: geotification.radius, identifier: geotification.identifier)
+      region.notifyOnEntry = (geotification.eventType == .onEntry)
+      region.notifyOnExit = !region.notifyOnEntry
+      return region
+    }
+    
+    func startMonitoring(geotification: Geotification) {
+      if !CLLocationManager.isMonitoringAvailable(for: CLCircularRegion.self) {
+        showAlert(withTitle:"Error", message: "Geofencing is not supported on this device!")
+        return
+      }
+      
+      if CLLocationManager.authorizationStatus() != .authorizedAlways {
+        let message = """
+        Your geotification is saved but will only be activated once you grant
+        Geotify permission to access the device location.
+        """
+        showAlert(withTitle:"Warning", message: message)
+      }
+      
+      let fenceRegion = region(with: geotification)
+      locationManager.startMonitoring(for: fenceRegion)
+    }
+
+    func stopMonitoring(geotification: Geotification) {
+      for region in locationManager.monitoredRegions {
+        guard let circularRegion = region as? CLCircularRegion, circularRegion.identifier == geotification.identifier else { continue }
+        locationManager.stopMonitoring(for: circularRegion)
+      }
     }
 }
 
@@ -329,6 +400,18 @@ extension ViewController: MKMapViewDelegate {
         print("latitude: \(annotation.coordinate.latitude), longitude: \(annotation.coordinate.longitude)")
         
         return myPinView
+    }
+    
+    func mapView(_ mapView: MKMapView, rendererFor overlay: MKOverlay) -> MKOverlayRenderer {
+      if overlay is MKCircle {
+        print("Overlayed")
+        let circleRenderer = MKCircleRenderer(overlay: overlay)
+        circleRenderer.lineWidth = 1.0
+        circleRenderer.strokeColor = .purple
+        circleRenderer.fillColor = UIColor.purple.withAlphaComponent(0.4)
+        return circleRenderer
+      }
+      return MKOverlayRenderer(overlay: overlay)
     }
     
 }

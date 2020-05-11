@@ -13,6 +13,8 @@
 		567E19FF2436D7F700825A3B /* Main.storyboard in Resources */ = {isa = PBXBuildFile; fileRef = 567E19FD2436D7F700825A3B /* Main.storyboard */; };
 		567E1A012436D7F900825A3B /* Assets.xcassets in Resources */ = {isa = PBXBuildFile; fileRef = 567E1A002436D7F900825A3B /* Assets.xcassets */; };
 		567E1A042436D7F900825A3B /* LaunchScreen.storyboard in Resources */ = {isa = PBXBuildFile; fileRef = 567E1A022436D7F900825A3B /* LaunchScreen.storyboard */; };
+		56A8A7BF2469CE9A00A88278 /* Geotification.swift in Sources */ = {isa = PBXBuildFile; fileRef = 56A8A7BE2469CE9A00A88278 /* Geotification.swift */; };
+		56A8A7C12469D44400A88278 /* Utilities.swift in Sources */ = {isa = PBXBuildFile; fileRef = 56A8A7C02469D44400A88278 /* Utilities.swift */; };
 /* End PBXBuildFile section */
 
 /* Begin PBXFileReference section */
@@ -24,6 +26,8 @@
 		567E1A002436D7F900825A3B /* Assets.xcassets */ = {isa = PBXFileReference; lastKnownFileType = folder.assetcatalog; path = Assets.xcassets; sourceTree = "<group>"; };
 		567E1A032436D7F900825A3B /* Base */ = {isa = PBXFileReference; lastKnownFileType = file.storyboard; name = Base; path = Base.lproj/LaunchScreen.storyboard; sourceTree = "<group>"; };
 		567E1A052436D7F900825A3B /* Info.plist */ = {isa = PBXFileReference; lastKnownFileType = text.plist.xml; path = Info.plist; sourceTree = "<group>"; };
+		56A8A7BE2469CE9A00A88278 /* Geotification.swift */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.swift; path = Geotification.swift; sourceTree = "<group>"; };
+		56A8A7C02469D44400A88278 /* Utilities.swift */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.swift; path = Utilities.swift; sourceTree = "<group>"; };
 /* End PBXFileReference section */
 
 /* Begin PBXFrameworksBuildPhase section */
@@ -59,6 +63,8 @@
 				567E19F72436D7F700825A3B /* AppDelegate.swift */,
 				567E19F92436D7F700825A3B /* SceneDelegate.swift */,
 				567E19FB2436D7F700825A3B /* ViewController.swift */,
+				56A8A7BE2469CE9A00A88278 /* Geotification.swift */,
+				56A8A7C02469D44400A88278 /* Utilities.swift */,
 				567E19FD2436D7F700825A3B /* Main.storyboard */,
 				567E1A002436D7F900825A3B /* Assets.xcassets */,
 				567E1A022436D7F900825A3B /* LaunchScreen.storyboard */,
@@ -141,6 +147,8 @@
 				567E19FC2436D7F700825A3B /* ViewController.swift in Sources */,
 				567E19F82436D7F700825A3B /* AppDelegate.swift in Sources */,
 				567E19FA2436D7F700825A3B /* SceneDelegate.swift in Sources */,
+				56A8A7C12469D44400A88278 /* Utilities.swift in Sources */,
+				56A8A7BF2469CE9A00A88278 /* Geotification.swift in Sources */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};
