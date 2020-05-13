@@ -28,6 +28,9 @@
 		567E1A052436D7F900825A3B /* Info.plist */ = {isa = PBXFileReference; lastKnownFileType = text.plist.xml; path = Info.plist; sourceTree = "<group>"; };
 		56A8A7BE2469CE9A00A88278 /* Geotification.swift */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.swift; path = Geotification.swift; sourceTree = "<group>"; };
 		56A8A7C02469D44400A88278 /* Utilities.swift */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.swift; path = Utilities.swift; sourceTree = "<group>"; };
+		56A8A7C4246B36A800A88278 /* Apple.gpx */ = {isa = PBXFileReference; lastKnownFileType = text.xml; path = Apple.gpx; sourceTree = "<group>"; };
+		56A8A7C5246B36AB00A88278 /* Google.gpx */ = {isa = PBXFileReference; lastKnownFileType = text.xml; path = Google.gpx; sourceTree = "<group>"; };
+		56A8A7C6246B36B200A88278 /* SimulatedLocations.gpx */ = {isa = PBXFileReference; lastKnownFileType = text.xml; path = SimulatedLocations.gpx; sourceTree = "<group>"; };
 /* End PBXFileReference section */
 
 /* Begin PBXFrameworksBuildPhase section */
@@ -60,6 +63,9 @@
 		567E19F62436D7F700825A3B /* ParkZen */ = {
 			isa = PBXGroup;
 			children = (
+				56A8A7C4246B36A800A88278 /* Apple.gpx */,
+				56A8A7C5246B36AB00A88278 /* Google.gpx */,
+				56A8A7C6246B36B200A88278 /* SimulatedLocations.gpx */,
 				567E19F72436D7F700825A3B /* AppDelegate.swift */,
 				567E19F92436D7F700825A3B /* SceneDelegate.swift */,
 				567E19FB2436D7F700825A3B /* ViewController.swift */,
