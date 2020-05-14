@@ -72,6 +72,7 @@ class ViewController: UIViewController {
         
         mapView.showsUserLocation = true
         
+        
         // Timer to increment the pins' timer once per minute.
         _ = Timer.scheduledTimer(timeInterval: 60.0, target: self, selector: #selector(ViewController.incrementAnnotations), userInfo: nil, repeats: true)
         
@@ -114,7 +115,12 @@ class ViewController: UIViewController {
             
         }
         
+        NotificationCenter.default.addObserver(self, selector: #selector(reinstateBackgroundTask), name: UIApplication.didBecomeActiveNotification, object: nil)
         
+    }
+    
+    deinit {
+      NotificationCenter.default.removeObserver(self)
     }
     
     func add(_ geotification: Geotification) {
@@ -124,42 +130,51 @@ class ViewController: UIViewController {
     }
     
     
-//    func application(_ application: UIApplication,
-//                     didFinishLaunchingWithOptions launchOptions:
-//        [UIApplication.LaunchOptionsKey: Any]?) -> Bool {
-//        // Override point for customization after application launch.
-//        print("Gang.")
-//        BGTaskScheduler.shared.register(forTaskWithIdentifier:
-//        "sumocode.ParkZen.get_location",
-//        using: nil)
-//        {task in
-//            self.handleAppRefresh(task: task as! BGAppRefreshTask)
-//        }
-//        
-//        return true
-//    }
+    //    func application(_ application: UIApplication,
+    //                     didFinishLaunchingWithOptions launchOptions:
+    //        [UIApplication.LaunchOptionsKey: Any]?) -> Bool {
+    //        // Override point for customization after application launch.
+    //        print("Gang.")
+    //        BGTaskScheduler.shared.register(forTaskWithIdentifier:
+    //        "sumocode.ParkZen.get_location",
+    //        using: nil)
+    //        {task in
+    //            self.handleAppRefresh(task: task as! BGAppRefreshTask)
+    //        }
+    //
+    //        return true
+    //    }
     
     // MARK: Background Task Updates
     // Registers a background task to run when the app closes.
     func registerBackgroundTask() {
-      backgroundTask = UIApplication.shared.beginBackgroundTask { [weak self] in
-        self?.endBackgroundTask()
-      }
-      assert(backgroundTask != .invalid)
+        backgroundTask = UIApplication.shared.beginBackgroundTask { [weak self] in
+            self?.endBackgroundTask()
+        }
+        assert(backgroundTask != .invalid)
     }
     
     // Runs when the background task completes or when the iOS decides that it's had enough of running it (after about 3 minutes of run time)
     func endBackgroundTask() {
-      print("Background task ended.")
-      UIApplication.shared.endBackgroundTask(backgroundTask)
-      backgroundTask = .invalid
+        print("Background task ended.")
+        UIApplication.shared.endBackgroundTask(backgroundTask)
+        backgroundTask = .invalid
     }
     
+    
+    @objc func reinstateBackgroundTask() {
+        if backgroundTask == .invalid {
+            registerBackgroundTask()
+        }
+    }
+    
+    
     // Creates a request task to run a quick location check every 30 seconds
+    // This won't work.  Also this is for when the app is terminated.
     func scheduleAppRefresh() {
         let request = BGAppRefreshTaskRequest(identifier: "sumocode.ParkZen.get_location")
         // Fetch no earlier than 30 seconds from now
-        request.earliestBeginDate = Date(timeIntervalSinceNow: 5)
+        request.earliestBeginDate = Date(timeIntervalSinceNow: 30)
         print("Scheduling...")
         do {
             try BGTaskScheduler.shared.submit(request)
@@ -175,11 +190,11 @@ class ViewController: UIViewController {
     func handleAppRefresh(task: BGAppRefreshTask) {
         // Schedule a new refresh task
         print("Rescheduling...")
-
+        
         scheduleAppRefresh()
         
         isBackgroundRefresh = true
-                
+        
         locationManager.delegate = self
         locationManager.requestLocation()
         
@@ -305,7 +320,19 @@ class ViewController: UIViewController {
             self.activitiesLabel.text = modes.joined(separator: ", ")
             print(modes.joined(separator: ", "))
             self.notify()
-            self.scheduleAppRefresh()
+            self.registerBackgroundTask()
+            
+            switch UIApplication.shared.applicationState {
+            case .active:
+                print("We active")
+            case .background:
+                print("App is backgrounded.")
+                print("Background time remaining = \(UIApplication.shared.backgroundTimeRemaining) seconds")
+            case .inactive:
+                break
+            @unknown default:
+                fatalError()
+            }
             
             if(self.previousActivity.id == "driving" && self.previousActivity.conf != 0 && modes.first != "driving" && activity.confidence.rawValue != 0) {
                 self.dropPin(self.recentLocation.coordinate)
