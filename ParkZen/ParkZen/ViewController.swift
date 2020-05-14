@@ -25,6 +25,7 @@ class ViewController: UIViewController {
     @IBOutlet weak var mapView: MKMapView!
     
     
+    // MARK: Properties
     var locationManager: CLLocationManager = CLLocationManager()
     
     let manager = CMMotionActivityManager()
@@ -60,6 +61,7 @@ class ViewController: UIViewController {
     var gotLocationInBG: Bool = false;
     
     
+    //MARK: Initialization
     override func viewDidLoad() {
         super.viewDidLoad()
         
@@ -123,11 +125,7 @@ class ViewController: UIViewController {
       NotificationCenter.default.removeObserver(self)
     }
     
-    func add(_ geotification: Geotification) {
-        geotifications.append(geotification)
-        mapView.addAnnotation(geotification)
-        mapView?.addOverlay(MKCircle(center: geotification.coordinate, radius: geotification.radius))
-    }
+
     
     
     //    func application(_ application: UIApplication,
@@ -145,7 +143,7 @@ class ViewController: UIViewController {
     //        return true
     //    }
     
-    // MARK: Background Task Updates
+    // MARK: Background Updates
     // Registers a background task to run when the app closes.
     func registerBackgroundTask() {
         backgroundTask = UIApplication.shared.beginBackgroundTask { [weak self] in
@@ -169,6 +167,7 @@ class ViewController: UIViewController {
     }
     
     
+    // MARK: Scheduling
     // Creates a request task to run a quick location check every 30 seconds
     // This won't work.  Also this is for when the app is terminated.
     func scheduleAppRefresh() {
@@ -204,6 +203,13 @@ class ViewController: UIViewController {
     }
     
     
+    override func didReceiveMemoryWarning() {
+        super.didReceiveMemoryWarning()
+        // Dispose of any resources that can be recreated.
+    }
+    
+    
+    // MARK: Location and Pin Stuff
     // Increments the timer on all of the pins that are not the User Location.
     @objc func incrementAnnotations()
     {
@@ -219,13 +225,6 @@ class ViewController: UIViewController {
             }
         }
     }
-    
-    
-    override func didReceiveMemoryWarning() {
-        super.didReceiveMemoryWarning()
-        // Dispose of any resources that can be recreated.
-    }
-    
     
     // Gets location whenever it is updated and updates the associated labels.
     func locationManager(_ manager: CLLocationManager, didUpdateLocations locations: [CLLocation]) {
@@ -355,11 +354,20 @@ class ViewController: UIViewController {
         manager.stopActivityUpdates()
     }
     
+    
+    
+    // MARK: Geofence Handling
     func region(with geotification: Geotification) -> CLCircularRegion {
         let region = CLCircularRegion(center: geotification.coordinate, radius: geotification.radius, identifier: geotification.identifier)
         region.notifyOnEntry = (geotification.eventType == .onEntry)
         region.notifyOnExit = true
         return region
+    }
+    
+    func add(_ geotification: Geotification) {
+        geotifications.append(geotification)
+        mapView.addAnnotation(geotification)
+        mapView?.addOverlay(MKCircle(center: geotification.coordinate, radius: geotification.radius))
     }
     
     func startMonitoring(geotification: Geotification) {
@@ -387,8 +395,6 @@ class ViewController: UIViewController {
         }
     }
     
-    
-    // MARK: Geofence Handling
     func note(from identifier: String) -> String? {
         let geotifications = Geotification.allGeotifications()
         guard let matched = geotifications.filter({
@@ -399,30 +405,9 @@ class ViewController: UIViewController {
     
     func handleEvent(for region: CLRegion!) {
         beginActivityMonitor()
-        // Show an alert if application is active
-        //        if UIApplication.shared.applicationState == .active {
-        //            guard let message = note(from: region.identifier) else { return }
-        //            window?.rootViewController?.showAlert(withTitle: nil, message: message)
-        //        } else {
-        //            // Otherwise present a local notification
-        //            guard let body = note(from: region.identifier) else { return }
-        //            let notificationContent = UNMutableNotificationContent()
-        //            notificationContent.body = body
-        //            notificationContent.sound = UNNotificationSound.default
-        //            notificationContent.badge = UIApplication.shared.applicationIconBadgeNumber + 1 as NSNumber
-        //            let trigger = UNTimeIntervalNotificationTrigger(timeInterval: 1, repeats: false)
-        //            let request = UNNotificationRequest(identifier: "location_change",
-        //                                                content: notificationContent,
-        //                                                trigger: trigger)
-        //            UNUserNotificationCenter.current().add(request) { error in
-        //                if let error = error {
-        //                    print("Error: \(error)")
-        //                }
-        //            }
-        //        }
     }
     
-    
+    //MARK: Notifications
     func notify() {
         let notificationContent = UNMutableNotificationContent()
         notificationContent.body = self.previousActivity.id
@@ -508,6 +493,7 @@ extension ViewController: CLLocationManagerDelegate {
         }
     }
 }
+
 
 extension String {
     var isNumeric: Bool {
