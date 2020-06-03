@@ -9,6 +9,7 @@
 import UIKit
 import CoreLocation
 import UserNotifications
+import BackgroundTasks
 
 @UIApplicationMain
 class AppDelegate: UIResponder, UIApplicationDelegate {
@@ -26,8 +27,57 @@ class AppDelegate: UIResponder, UIApplicationDelegate {
                     print("Error: \(error)")
                 }
         }
+        
+        BGTaskScheduler.shared.register(forTaskWithIdentifier:
+        "sumocode.ParkZen.get_location",
+        using: nil)
+        {task in
+            self.handleAppRefresh(task: task as! BGAppRefreshTask)
+        }
+        
+        let defaults = UserDefaults.standard
+        let myarray = defaults.stringArray(forKey: "SavedStringArray") ?? [String]()
+        
+        for date in myarray {
+            print(date)
+        }
+        
+        
+        
         return true
+        
     }
+    
+    // Creates a request task to run a quick location check every 30 seconds.
+    func scheduleAppRefresh() {
+        let request = BGAppRefreshTaskRequest(identifier: "sumocode.ParkZen.get_location")
+        // Fetch no earlier than 30 seconds from now
+        request.earliestBeginDate = Date(timeIntervalSinceNow: 30)
+        print("Scheduling...")
+        do {
+            try BGTaskScheduler.shared.submit(request)
+            print("Success!")
+        } catch {
+            print("Could not schedule app refresh: \(error)")
+        }
+    }
+    
+    // Handles the request made in scheduleAppRefresh() when it is called.
+    // When the system opens the app in the background, it calls the launch handler to run the task.
+    func handleAppRefresh(task: BGAppRefreshTask) {
+        
+        // Sends notification to the phone and adds the time to a list.
+        notify()
+        
+        // Ends the task
+        task.setTaskCompleted(success: true)
+        
+        // Schedule a new refresh task
+        print("Rescheduling...")
+        scheduleAppRefresh()
+    }
+    
+
     
     // MARK: UISceneSession Lifecycle
     
@@ -75,7 +125,38 @@ class AppDelegate: UIResponder, UIApplicationDelegate {
             }
         }
     }
+    
+    func notify() {
+//        let notificationContent = UNMutableNotificationContent()
+//        notificationContent.body = "He he he yep"
+//        notificationContent.sound = UNNotificationSound.default
+//        notificationContent.badge = UIApplication.shared.applicationIconBadgeNumber + 1 as NSNumber
+//        let trigger = UNTimeIntervalNotificationTrigger(timeInterval: 1, repeats: false)
+//        let request = UNNotificationRequest(identifier: "background",
+//                                            content: notificationContent,
+//                                            trigger: trigger)
+//        UNUserNotificationCenter.current().add(request) { error in
+//            if let error = error {
+//                print("Error: \(error)")
+//            }
+//        }
+        
+        // Get date in string form
+        let df = DateFormatter()
+        df.dateFormat = "yyyy-MM-dd hh:mm:ss"
+        let now = df.string(from: Date())
+
+        // Get the previous array and add to it
+        let defaults = UserDefaults.standard
+        var myarray = defaults.stringArray(forKey: "SavedStringArray") ?? [String]()
+        
+        myarray.append(now)
+        
+        // Save it back
+        defaults.set(myarray, forKey: "SavedStringArray")
+    }
 }
+
 
 extension AppDelegate: CLLocationManagerDelegate {
     
