@@ -15,6 +15,7 @@
 		567E1A042436D7F900825A3B /* LaunchScreen.storyboard in Resources */ = {isa = PBXBuildFile; fileRef = 567E1A022436D7F900825A3B /* LaunchScreen.storyboard */; };
 		56A8A7BF2469CE9A00A88278 /* Geotification.swift in Sources */ = {isa = PBXBuildFile; fileRef = 56A8A7BE2469CE9A00A88278 /* Geotification.swift */; };
 		56A8A7C12469D44400A88278 /* Utilities.swift in Sources */ = {isa = PBXBuildFile; fileRef = 56A8A7C02469D44400A88278 /* Utilities.swift */; };
+		56EBC5F224ABB5C000D694B2 /* SumoAnnotation.swift in Sources */ = {isa = PBXBuildFile; fileRef = 56EBC5F124ABB5BF00D694B2 /* SumoAnnotation.swift */; };
 /* End PBXBuildFile section */
 
 /* Begin PBXFileReference section */
@@ -31,6 +32,7 @@
 		56A8A7C4246B36A800A88278 /* Apple.gpx */ = {isa = PBXFileReference; lastKnownFileType = text.xml; path = Apple.gpx; sourceTree = "<group>"; };
 		56A8A7C5246B36AB00A88278 /* Google.gpx */ = {isa = PBXFileReference; lastKnownFileType = text.xml; path = Google.gpx; sourceTree = "<group>"; };
 		56A8A7C6246B36B200A88278 /* SimulatedLocations.gpx */ = {isa = PBXFileReference; lastKnownFileType = text.xml; path = SimulatedLocations.gpx; sourceTree = "<group>"; };
+		56EBC5F124ABB5BF00D694B2 /* SumoAnnotation.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SumoAnnotation.swift; sourceTree = "<group>"; };
 /* End PBXFileReference section */
 
 /* Begin PBXFrameworksBuildPhase section */
@@ -68,6 +70,7 @@
 				56A8A7C6246B36B200A88278 /* SimulatedLocations.gpx */,
 				567E19F72436D7F700825A3B /* AppDelegate.swift */,
 				567E19F92436D7F700825A3B /* SceneDelegate.swift */,
+				56EBC5F124ABB5BF00D694B2 /* SumoAnnotation.swift */,
 				567E19FB2436D7F700825A3B /* ViewController.swift */,
 				56A8A7BE2469CE9A00A88278 /* Geotification.swift */,
 				56A8A7C02469D44400A88278 /* Utilities.swift */,
@@ -150,6 +153,7 @@
 			isa = PBXSourcesBuildPhase;
 			buildActionMask = 2147483647;
 			files = (
+				56EBC5F224ABB5C000D694B2 /* SumoAnnotation.swift in Sources */,
 				567E19FC2436D7F700825A3B /* ViewController.swift in Sources */,
 				567E19F82436D7F700825A3B /* AppDelegate.swift in Sources */,
 				567E19FA2436D7F700825A3B /* SceneDelegate.swift in Sources */,

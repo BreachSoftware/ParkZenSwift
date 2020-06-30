@@ -14,7 +14,7 @@ import CoreMotion
 import BackgroundTasks
 import UserNotifications
 import CoreBluetooth
-
+import ExternalAccessory
 
 
 class ViewController: UIViewController {
@@ -27,9 +27,13 @@ class ViewController: UIViewController {
     
     
     // MARK: Properties
+    
+    // Manages all location interaction.
     var locationManager: CLLocationManager = CLLocationManager()
     
-    let manager = CMMotionActivityManager()
+    let activityManager: CMMotionActivityManager = CMMotionActivityManager()
+    
+    let accessoryManager: EAAccessoryManager = EAAccessoryManager.shared()
     
     var geotifications: [Geotification] = []
     
@@ -38,21 +42,47 @@ class ViewController: UIViewController {
     // Struct for holding the previous activity's data.
     struct Activity {
         var id: String = "unknown"
+        // Confidence value (0, 1, or 2) of how sure the system is of the activity.  2 is highest.
         var conf: Int = 0
     }
     
     // Struct for holding bluetooth peripheral info.
     struct Peripheral: Codable {
+        // Unique identifier for all BT peripherals.
         var uuid: UUID = UUID()
+        // Usually optional (but not for us) name of the device.
         var name: String = ""
+        // Records whether this devices has connected with us before and if it should autoconnect in the future.
         var hasConnected: Bool = false
     }
     
     // Struct for holding the component displaying connected Bluetooth devices.
     struct perifSwitchComponent {
+        // Label with name of the peripheral.
         var label: UILabel = UILabel()
+        // Switch to turn connection to peripheral on or off.
         var uiSwitch: UISwitch = UISwitch()
+        // The data of the peripheral that is being controlled.
         var savedPerifData: Peripheral = Peripheral()
+    }
+    
+    // Struct for saving most recent parked location coordinates so it's encodable.
+    // I actually don't think this is the way to do this, but my only other idea is to create
+    // an entire class that is encodable and writing an encode() function like in Geotification.swift,
+    // but jeez that seems like a whole lot of sweat for something that doesn't help anything as far
+    // as I can tell, so I'm leaving it like this for now.
+    struct SumoCoordinate: Codable {
+        var latitude: Double = 0
+        var longitude: Double = 0
+        var timeCreated: Double = Date().timeIntervalSince1970
+        
+        init() {
+        }
+        
+        init(coord: CLLocationCoordinate2D) {
+            self.latitude = coord.latitude
+            self.longitude = coord.longitude
+        }
     }
     
     // For bluetooth management
@@ -74,17 +104,19 @@ class ViewController: UIViewController {
     
     // This is probably not the best way to do this!!
     // True only if this is a background refresh.
-    var isBackgroundRefresh: Bool = false;
+    var isDisconnectLocation: Bool = false;
     // Also only for BG refresh, returns if location is found (so it can end the task).
     var gotLocationInBG: Bool = false;
+    // Hey buddy pretty sure both of these are unused now.
     
     // Used to keep track of the label and switches on the scroll view.
     var perifSwitches: [perifSwitchComponent] = []
     
     // Use to keep track of connected peripherals.  God this is a mess.
     // TODO: clean up all the different ways that I'm saving peripherals.
-    var activePeripherals: [CBPeripheral] = []
+    var connectedPeripherals: [CBPeripheral] = []
     
+    final var mostRecentSavedLocationKey = "RECENTLOC"
     
     
     
@@ -102,7 +134,7 @@ class ViewController: UIViewController {
         mapView.showsUserLocation = true
         
         // Turns bluetooth management on
-        centralManager = CBCentralManager(delegate: self, queue: nil)
+        centralManager = CBCentralManager(delegate: self, queue: nil, options: [CBCentralManagerOptionRestoreIdentifierKey : "restore.com.sumocode.parkzen"])
 
         
         
@@ -156,15 +188,23 @@ class ViewController: UIViewController {
         NotificationCenter.default.addObserver(self, selector: #selector(reinstateBackgroundTask), name: UIApplication.didBecomeActiveNotification, object: nil)
         
         
-        let defaults = UserDefaults.standard
-        defaults.set([], forKey: "Peripherals")
+        //let defaults = UserDefaults.standard
+        //defaults.set([], forKey: "Peripherals")
         let savedPerifs: [Peripheral] = UserDefaults.standard.structArrayData(Peripheral.self, forKey: "Peripherals")
         
         // Loads all saved peripherals into the scroll view
         for perif in savedPerifs {
-            print(perif.name)
             createNewBluetoothSelectComponent(perif: perif)
         }
+        
+        
+        //UserDefaults.standard.setStruct(SumoCoordinate(), forKey: mostRecentSavedLocationKey)
+        
+        if let lastLoc = UserDefaults.standard.structData(SumoCoordinate.self, forKey: mostRecentSavedLocationKey) {
+            dropPin(CLLocationCoordinate2D(latitude: lastLoc.latitude, longitude: lastLoc.longitude), "0 minutes", lastLoc.timeCreated)
+        }
+        
+        incrementAnnotations()
         
     }
     
@@ -199,7 +239,7 @@ class ViewController: UIViewController {
         
         let perifSwitch = UISwitch(frame:CGRect(x: 150, y: y, width: 0, height: 0))
         perifSwitch.addTarget(self, action: #selector(ViewController.switchStateDidChange(_:)), for: .valueChanged)
-        perifSwitch.setOn(true, animated: false)
+        perifSwitch.setOn(perif.hasConnected, animated: false)
         self.scrollView.addSubview(perifSwitch)
         
         // Creates a new perifSwitchComponent struct and then adds it to the list of switches.
@@ -219,13 +259,24 @@ class ViewController: UIViewController {
         if (sender.isOn == true) {
             // Grabs the first (and only) returned peripheral based on the UUID
             let activatedPeripheral = centralManager.retrievePeripherals(withIdentifiers: [which.savedPerifData.uuid]).first
+            if activatedPeripheral == nil {
+                print("Error: Device not available.")
+                return
+            }
             print(activatedPeripheral?.name! ?? "ERR")
             centralManager.registerForConnectionEvents(options: [CBConnectionEventMatchingOption.peripheralUUIDs : [activatedPeripheral!.identifier]])
             centralManager.connect(activatedPeripheral!, options: nil)
-            activePeripherals.append(activatedPeripheral!)
+            if !connectedPeripherals.contains(activatedPeripheral!) {
+                connectedPeripherals.append(activatedPeripheral!)
+            }
+            
+            
+            savePeripheralChanges(changedPeripheralID: activatedPeripheral!.identifier, isConnected: true)
+        
         }
         else {
-            //print("UISwitch state is now Off")
+            connectedPeripherals.removeAll(where: {$0.identifier == which.savedPerifData.uuid})
+            savePeripheralChanges(changedPeripheralID: which.savedPerifData.uuid, isConnected: false)
         }
     }
     
@@ -237,6 +288,25 @@ class ViewController: UIViewController {
             }
         }
         return perifSwitchComponent()
+    }
+    
+    func savePeripheralChanges(changedPeripheralID: UUID, isConnected: Bool) {
+        // Get all saved Peripherals
+        let defaults = UserDefaults.standard
+        var savedPerifs: [Peripheral] = defaults.structArrayData(Peripheral.self, forKey: "Peripherals")
+        
+        // Check each saved uuid against the uuid of the activatedPeripheral
+        savedPerifs.forEach { (perif) in
+            if perif.uuid == changedPeripheralID {
+                // Once found, create a new peripheral with hasConnected = true
+                let newPerif = Peripheral(uuid: perif.uuid, name: perif.name, hasConnected: isConnected)
+                // Remove the old one, add the new one.
+                savedPerifs.removeAll(where: {$0.uuid == changedPeripheralID})
+                isConnected ? savedPerifs.insert(newPerif, at: 0) : savedPerifs.append(newPerif)
+            }
+        }
+        // Save it back to UserDefaults
+        defaults.setStructArray(savedPerifs, forKey: "Peripherals")
     }
     
     
@@ -308,43 +378,26 @@ class ViewController: UIViewController {
     {
         let annotations = mapView.annotations
         for annotation: MKAnnotation in annotations {
-            if annotation.title!!.isNumeric {
-                // There's gotta be a better way to take care of this but I don't know
-                // type and string manipulation well enough in this language yet :p
-                let str: String = annotation.title!!
-                let num = Int(str)!
-                dropPin(annotation.coordinate, String(num+1) + " minutes")
+            
+            if annotation is SumoAnnotation {
+                let timeStamp = (annotation as! SumoAnnotation).timeStamp
+                
+                // Calculates the age in minutes since the annotation has been created.
+                let age = (Date().timeIntervalSince1970 - timeStamp!) / 60
+                dropPin(annotation.coordinate, String(Int(round(age))) + " minute" + (Int(round(age)) == 1 ? "" : "s"), timeStamp)
                 mapView.removeAnnotation(annotation)
             }
-        }
-    }
-    
-    // Gets location whenever it is updated and updates the associated labels.
-    func locationManager(_ manager: CLLocationManager, didUpdateLocations locations: [CLLocation]) {
-        
-        // Runs only if this is called from a background refresh.  Simply returns and prints the location.
-        if isBackgroundRefresh {
-            if let location = locations.first {
-                print("Found user's location: \(location)")
-                gotLocationInBG = true
-            }
-            return;
-        }
-        
-        let lastLocation: CLLocation = locations[locations.count - 1]
-        self.recentLocation = lastLocation
-        
-        // Displays info at the top of the screen about location data.
-        latitudeLabel.text = String(format: "%.6f", lastLocation.coordinate.latitude)
-        longitudeLabel.text = String(format: "%.6f", lastLocation.coordinate.longitude)
-//        altitudeLabel.text = String(format: "%.6f", lastLocation.altitude)
-//        hAccuracyLabel.text = String(format: "%.6f", lastLocation.horizontalAccuracy)
-//        vAccuracyLabel.text = String(format: "%.6f", lastLocation.verticalAccuracy)
-        
-        // Runs when the app is opened to center the map to the user's location.
-        if !initialized {
-            animateMap(lastLocation)
-            initialized = true
+            
+            // This doesn't work anymore and the fact that I wrote this thinking it would is a testament to my ability to
+            // not think.
+//            if annotation.title!!.isNumeric {
+//                // There's gotta be a better way to take care of this but I don't know
+//                // type and string manipulation well enough in this language yet :p
+//                let str: String = annotation.title!!
+//                let num = Int(str)!
+//                dropPin(annotation.coordinate, String(num+1) + " minute" + (num == 1 ? "" : "s"))
+//                mapView.removeAnnotation(annotation)
+//            }
         }
     }
     
@@ -357,12 +410,15 @@ class ViewController: UIViewController {
     
     
     // Creates and adds a pin to the map.
-    func dropPin(_ coord: CLLocationCoordinate2D, _ title: String? = "0") {
+    func dropPin(_ coord: CLLocationCoordinate2D, _ title: String? = "0", _ timeStamp: Double? = Date().timeIntervalSince1970) {
         
         let allAnnotations = self.mapView.annotations
         self.mapView.removeAnnotations(allAnnotations)
         
-        let myPin: MKPointAnnotation = MKPointAnnotation()
+        let myPin: SumoAnnotation = SumoAnnotation()
+        
+        // Set the time stamp.
+        myPin.timeStamp = timeStamp
         
         // Set the coordinates.
         myPin.coordinate = coord
@@ -381,7 +437,7 @@ class ViewController: UIViewController {
     // Reports user activity on change.
     public func beginActivityMonitor() {
         print("Began monitoring activities...")
-        manager.startActivityUpdates(to: .main) { (activity) in
+        activityManager.startActivityUpdates(to: .main) { (activity) in
             guard let activity = activity else {
                 return
             }
@@ -412,7 +468,7 @@ class ViewController: UIViewController {
             self.activitiesLabel.text = modes.joined(separator: ", ")
             print(modes.joined(separator: ", "))
             self.notify()
-            self.registerBackgroundTask()
+            //self.registerBackgroundTask()
             
             switch UIApplication.shared.applicationState {
             case .active:
@@ -444,7 +500,7 @@ class ViewController: UIViewController {
     }
     
     public func stopActivityMonitor() {
-        manager.stopActivityUpdates()
+        activityManager.stopActivityUpdates()
     }
     
     
@@ -497,7 +553,7 @@ class ViewController: UIViewController {
     }
     
     func handleEvent(for region: CLRegion!) {
-        beginActivityMonitor()
+        //beginActivityMonitor()
     }
     
     //MARK: - Notifications
@@ -534,13 +590,16 @@ class ViewController: UIViewController {
     }
 }
 
-
-
+// MARK: Map View Delegate
 extension ViewController: MKMapViewDelegate {
     
     
     // Delegate method called when addAnnotation is done.
     func mapView(_ mapView: MKMapView, viewFor annotation: MKAnnotation) -> MKAnnotationView? {
+        
+        if annotation.title == nil || !annotation.title!!.isNumeric {
+            return nil
+        }
         
         let myPinIdentifier = "PinAnnotationIdentifier"
         
@@ -555,6 +614,8 @@ extension ViewController: MKMapViewDelegate {
         
         // Set annotation.
         myPinView.annotation = annotation
+        
+        myPinView.showsLargeContentViewer = true
         
         //print("latitude: \(annotation.coordinate.latitude), longitude: \(annotation.coordinate.longitude)")
         
@@ -584,21 +645,51 @@ extension ViewController: CLLocationManagerDelegate {
         print("Monitoring failed for region with identifier: \(region!.identifier)")
     }
     
+    func locationManager(_ manager: CLLocationManager, didUpdateLocations locations: [CLLocation]) {
+        
+        // Runs only if this is called from a background refresh.  Simply returns and prints the location.
+        if isDisconnectLocation {
+            isDisconnectLocation = false
+            if let location = locations.first {
+                notify(withMessage: "Parking location saved!")
+                let defaults = UserDefaults.standard
+                defaults.setStruct(SumoCoordinate(coord: location.coordinate), forKey: mostRecentSavedLocationKey)
+            }
+            return;
+        }
+        
+        let lastLocation: CLLocation = locations[locations.count - 1]
+        self.recentLocation = lastLocation
+        
+        // Displays info at the top of the screen about location data.
+        latitudeLabel.text = String(format: "%.6f", lastLocation.coordinate.latitude)
+        longitudeLabel.text = String(format: "%.6f", lastLocation.coordinate.longitude)
+//        altitudeLabel.text = String(format: "%.6f", lastLocation.altitude)
+//        hAccuracyLabel.text = String(format: "%.6f", lastLocation.horizontalAccuracy)
+//        vAccuracyLabel.text = String(format: "%.6f", lastLocation.verticalAccuracy)
+        
+        // Runs when the app is opened to center the map to the user's location.
+        if !initialized {
+            animateMap(lastLocation)
+            initialized = true
+        }
+    }
+    
     func locationManager(_ manager: CLLocationManager, didFailWithError error: Error) {
         print("Location Manager failed with the following error: \(error)")
     }
     
     func locationManager(_ manager: CLLocationManager, didEnterRegion region: CLRegion) {
         if region is CLCircularRegion {
-            beginActivityMonitor()
-            print("ViewController:beginActivityMonitor()")
+            //beginActivityMonitor()
+            //print("ViewController:beginActivityMonitor()")
         }
     }
     
     func locationManager(_ manager: CLLocationManager, didExitRegion region: CLRegion) {
         if region is CLCircularRegion {
-            stopActivityMonitor()
-            print("ViewController:stopActivityMonitor()")
+            //stopActivityMonitor()
+            //print("ViewController:stopActivityMonitor()")
         }
     }
 }
@@ -621,11 +712,30 @@ extension ViewController: CBCentralManagerDelegate {
             case .poweredOn:
                 print("central.state is .poweredOn")
                 centralManager.scanForPeripherals(withServices: nil)
+                connectToMarkedPeripherals()
             default:
                 print("turn ya noodle to nada")
         }
     }
     
+    func connectToMarkedPeripherals() {
+        var identifiers: [UUID] = []
+        perifSwitches.forEach { (perifSwitch) in
+            if perifSwitch.savedPerifData.hasConnected {
+                identifiers.append(perifSwitch.savedPerifData.uuid)
+            }
+        }
+        let activatedPeripheral = centralManager.retrievePeripherals(withIdentifiers: identifiers)
+        activatedPeripheral.forEach { (perif) in
+            if !connectedPeripherals.contains(perif) {
+                connectedPeripherals.append(perif)
+            }
+            centralManager.connect(perif, options: nil)
+            print("Attempting to connect to \(perif.name ?? "Unnamed Device")")
+        }
+    }
+    
+    // Runs when a new Bluetooth device is discovered
     func centralManager(_ central: CBCentralManager, didDiscover peripheral: CBPeripheral,
                         advertisementData: [String: Any], rssi RSSI: NSNumber) {
         // Get the saved Peripherals from the UserDefaults
@@ -646,10 +756,12 @@ extension ViewController: CBCentralManagerDelegate {
             // Display the name on screen
             //peripheralListLabel.text = peripheralListLabel.text! + "\n" + peripheral.name!
             createNewBluetoothSelectComponent(perif: newPerif)
-            
         }
+
     }
     
+    
+    // Activates when any connection event occures
     func centralManager(_ central: CBCentralManager, connectionEventDidOccur event: CBConnectionEvent,
     for peripheral: CBPeripheral) {
         switch event {
@@ -663,6 +775,11 @@ extension ViewController: CBCentralManagerDelegate {
         }
     }
     
+    func centralManager(_ central: CBCentralManager, didConnect peripheral: CBPeripheral) {
+        notify(withMessage: "Connected to \(peripheral.name ?? "Unnamed Device")")
+    }
+    
+    // Activates when a peripheral disconnects from the device for any reason besides disconnectPeripheral()
     func centralManager(_ central: CBCentralManager, didDisconnectPeripheral peripheral: CBPeripheral,
     error: Error?) {
         notify(withMessage: (peripheral.name ?? "Unnamed Device") + " has disconnected.")
@@ -670,6 +787,34 @@ extension ViewController: CBCentralManagerDelegate {
         if error != nil {
             print("Reason: \(error!.localizedDescription)")
         }
+        locationManager.requestLocation()
+        isDisconnectLocation = true
+//        if let loc = locationManager.location?.coordinate {
+//            notify(withMessage: "\(loc.latitude) \(loc.longitude)")
+//        }
+            
+        centralManager.connect(peripheral, options: nil)
+        
+    }
+    
+    
+    func centralManager(_ central: CBCentralManager, willRestoreState dict: [String : Any]) {
+        notify(withMessage: "Restoring state.")
+
+        if let peripherals = dict[CBCentralManagerRestoredStatePeripheralsKey] as? [CBPeripheral] {
+            peripherals.forEach { (awakedPeripheral) in
+                print("Awaked peripheral \(awakedPeripheral.name ?? "Unnamed Device")")
+                //notify(withMessage: "Awaked peripheral \(awakedPeripheral.name ?? "Unnamed Device")")
+                centralManager.connect(awakedPeripheral, options: nil)
+                if !connectedPeripherals.contains(awakedPeripheral) {
+                    connectedPeripherals.append(awakedPeripheral)
+                }
+            }
+        }
+    }
+    
+    func peripheral(_ peripheral: CBPeripheral, didUpdateValueFor characteristic: CBCharacteristic, error: Error?) {
+        print("Peripheral value changed for \(peripheral.name ?? "Unnamed Device")")
     }
     
     
@@ -681,6 +826,8 @@ extension ViewController: CBCentralManagerDelegate {
         }
         return false
     }
+    
+    
 }
 
 
