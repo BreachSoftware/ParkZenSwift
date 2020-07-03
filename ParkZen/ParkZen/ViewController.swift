@@ -15,6 +15,7 @@ import BackgroundTasks
 import UserNotifications
 import CoreBluetooth
 import ExternalAccessory
+import SwiftUI
 
 
 class ViewController: UIViewController {
@@ -118,6 +119,8 @@ class ViewController: UIViewController {
     
     final var mostRecentSavedLocationKey = "RECENTLOC"
     
+    final var fakeDatabaseSavedLocationsKey = "FAKEDATABASELOCATIONS"
+    
     
     
     //MARK: - Initialization
@@ -133,7 +136,7 @@ class ViewController: UIViewController {
         
         mapView.showsUserLocation = true
         
-        // Turns bluetooth management on
+        // Turns bluetooth management on.
         centralManager = CBCentralManager(delegate: self, queue: nil, options: [CBCentralManagerOptionRestoreIdentifierKey : "restore.com.sumocode.parkzen"])
 
         
@@ -200,8 +203,17 @@ class ViewController: UIViewController {
         
         //UserDefaults.standard.setStruct(SumoCoordinate(), forKey: mostRecentSavedLocationKey)
         
-        if let lastLoc = UserDefaults.standard.structData(SumoCoordinate.self, forKey: mostRecentSavedLocationKey) {
-            dropPin(CLLocationCoordinate2D(latitude: lastLoc.latitude, longitude: lastLoc.longitude), "0 minutes", lastLoc.timeCreated)
+//        if let lastLoc = UserDefaults.standard.structData(SumoCoordinate.self, forKey: mostRecentSavedLocationKey) {
+//            dropPin(CLLocationCoordinate2D(latitude: lastLoc.latitude, longitude: lastLoc.longitude), "0 minutes", lastLoc.timeCreated)
+//        }
+        
+        
+        
+        let savedLocs: [SumoCoordinate] = UserDefaults.standard.structArrayData(SumoCoordinate.self, forKey: fakeDatabaseSavedLocationsKey)
+        
+        for loc in savedLocs {
+            print("Woop")
+            dropPin(CLLocationCoordinate2D(latitude: loc.latitude, longitude: loc.longitude), "0 minutes", loc.timeCreated)
         }
         
         incrementAnnotations()
@@ -383,8 +395,8 @@ class ViewController: UIViewController {
                 let timeStamp = (annotation as! SumoAnnotation).timeStamp
                 
                 // Calculates the age in minutes since the annotation has been created.
-                let age = (Date().timeIntervalSince1970 - timeStamp!) / 60
-                dropPin(annotation.coordinate, String(Int(round(age))) + " minute" + (Int(round(age)) == 1 ? "" : "s"), timeStamp)
+                let age = Int(round(Date().timeIntervalSince1970 - (annotation as! SumoAnnotation).timeStamp)/60)
+                dropPin(annotation.coordinate, String(age) + " minute" + (age == 1 ? "" : "s"), timeStamp)
                 mapView.removeAnnotation(annotation)
             }
             
@@ -412,8 +424,8 @@ class ViewController: UIViewController {
     // Creates and adds a pin to the map.
     func dropPin(_ coord: CLLocationCoordinate2D, _ title: String? = "0", _ timeStamp: Double? = Date().timeIntervalSince1970) {
         
-        let allAnnotations = self.mapView.annotations
-        self.mapView.removeAnnotations(allAnnotations)
+        // let allAnnotations = self.mapView.annotations
+        //self.mapView.removeAnnotations(allAnnotations)
         
         let myPin: SumoAnnotation = SumoAnnotation()
         
@@ -597,25 +609,67 @@ extension ViewController: MKMapViewDelegate {
     // Delegate method called when addAnnotation is done.
     func mapView(_ mapView: MKMapView, viewFor annotation: MKAnnotation) -> MKAnnotationView? {
         
-        if annotation.title == nil || !annotation.title!!.isNumeric {
+        if !(annotation is SumoAnnotation) {
             return nil
         }
         
         let myPinIdentifier = "PinAnnotationIdentifier"
         
         // Generate pins.
-        let myPinView = MKPinAnnotationView(annotation: annotation, reuseIdentifier: myPinIdentifier)
+        let myPinView = MKAnnotationView(annotation: annotation, reuseIdentifier: myPinIdentifier)
         
+        // Decides which image to display based on the age of the pin.
+        var imageName = ""
+        let oldestAgeAllowed = 30 // minutes
+        let increment = 4 // minutes between each range
+        let age = Int(round(Date().timeIntervalSince1970 - (annotation as! SumoAnnotation).timeStamp)/60)
+        // For me in the future: Yes, I know I could have done this in a super cool way, where you have a for loop that increases some integer value by 3 every loop and then increments some array of imageNames each time, but that is so hard to follow, so I'm writing it very simply for the sake of maintainability later on.
+        if age >= 0 && age < increment {
+            imageName = "ParkZen_Spot1_small"
+        }
+        else if age >= increment && age < increment*2 {
+            imageName = "ParkZen_Spot2_small"
+        }
+        else if age >= increment*2 && age < increment*3 {
+            imageName = "ParkZen_Spot3_small"
+        }
+        else if age >= increment*3 && age < increment*4 {
+            imageName = "ParkZen_Spot4_small"
+        }
+        else if age >= increment*4 && age < increment*5 {
+            imageName = "ParkZen_Spot5_small"
+        }
+        else if age >= increment*5 && age < oldestAgeAllowed {
+            imageName = "ParkZen_Spot6_small"
+        }
+        else {
+            mapView.removeAnnotation(annotation)
+            var savedLocs: [SumoCoordinate] = UserDefaults.standard.structArrayData(SumoCoordinate.self, forKey: fakeDatabaseSavedLocationsKey)
+            savedLocs.removeAll(where: {
+                Int(round(Date().timeIntervalSince1970 - $0.timeCreated)/60) > oldestAgeAllowed
+            })
+            UserDefaults.standard.setStructArray(savedLocs, forKey: fakeDatabaseSavedLocationsKey)
+            
+            // TODO: Do I need to delete it from the database here?  Yes.
+            return nil
+        }
+        
+        // Sets image
+        let offset = age < 10 ? 11 : 8
+        myPinView.image = textToImage(drawText: String(age), inImage: UIImage(named: imageName)!, atPoint: CGPoint(x: offset, y: 7))
+                
         // Add animation.
-        myPinView.animatesDrop = true
+        //myPinView.animatesDrop = true
         
         // Display callouts.
         myPinView.canShowCallout = true
+
         
         // Set annotation.
-        myPinView.annotation = annotation
+        //myPinView.annotation = annotation
         
-        myPinView.showsLargeContentViewer = true
+        // Set image.
+        //myPinView.image = UIImage(named: "ParkZen_Spot1")
         
         //print("latitude: \(annotation.coordinate.latitude), longitude: \(annotation.coordinate.longitude)")
         
@@ -632,6 +686,28 @@ extension ViewController: MKMapViewDelegate {
         }
         return MKOverlayRenderer(overlay: overlay)
     }
+    
+    func textToImage(drawText text: String, inImage image: UIImage, atPoint point: CGPoint) -> UIImage {
+        let textColor = UIColor.black
+        let textFont = UIFont(name: "Helvetica Bold", size: 12)!
+
+        let scale = UIScreen.main.scale
+        UIGraphicsBeginImageContextWithOptions(image.size, false, scale)
+
+        let textFontAttributes = [
+            NSAttributedString.Key.font: textFont,
+            NSAttributedString.Key.foregroundColor: textColor,
+            ] as [NSAttributedString.Key : Any]
+        image.draw(in: CGRect(origin: CGPoint.zero, size: image.size))
+
+        let rect = CGRect(origin: point, size: image.size)
+        text.draw(in: rect, withAttributes: textFontAttributes)
+
+        let newImage = UIGraphicsGetImageFromCurrentImageContext()
+        UIGraphicsEndImageContext()
+
+        return newImage!
+    }
 }
 
 // MARK: - Location Manager Delegate
@@ -647,15 +723,22 @@ extension ViewController: CLLocationManagerDelegate {
     
     func locationManager(_ manager: CLLocationManager, didUpdateLocations locations: [CLLocation]) {
         
-        // Runs only if this is called from a background refresh.  Simply returns and prints the location.
+        // Only is true if this is called from a disconnection event.  Otherwise, we don't want this to run, but we want to use the rest of the code for other stuff.
         if isDisconnectLocation {
             isDisconnectLocation = false
             if let location = locations.first {
                 notify(withMessage: "Parking location saved!")
+                print("Parking location saved!")
+                dropPin(location.coordinate, "0", Date().timeIntervalSince1970)
                 let defaults = UserDefaults.standard
+                // TODO: Make this save to the database.
                 defaults.setStruct(SumoCoordinate(coord: location.coordinate), forKey: mostRecentSavedLocationKey)
+                // Add location to the fake database of locations.
+                var locs: [SumoCoordinate] = defaults.structArrayData(SumoCoordinate.self, forKey: fakeDatabaseSavedLocationsKey)
+                locs.append(SumoCoordinate(coord: location.coordinate))
+                defaults.setStructArray(locs, forKey: fakeDatabaseSavedLocationsKey)
             }
-            return;
+            return
         }
         
         let lastLocation: CLLocation = locations[locations.count - 1]
@@ -726,12 +809,12 @@ extension ViewController: CBCentralManagerDelegate {
             }
         }
         let activatedPeripheral = centralManager.retrievePeripherals(withIdentifiers: identifiers)
-        activatedPeripheral.forEach { (perif) in
+        for perif in activatedPeripheral {
             if !connectedPeripherals.contains(perif) {
                 connectedPeripherals.append(perif)
             }
             centralManager.connect(perif, options: nil)
-            print("Attempting to connect to \(perif.name ?? "Unnamed Device")")
+            print("Attempting to connect to \(perif.name ?? "Unnamed Device")...")
         }
     }
     
@@ -777,6 +860,7 @@ extension ViewController: CBCentralManagerDelegate {
     
     func centralManager(_ central: CBCentralManager, didConnect peripheral: CBPeripheral) {
         notify(withMessage: "Connected to \(peripheral.name ?? "Unnamed Device")")
+        print("Connected to \(peripheral.name ?? "Unnamed Device")")
     }
     
     // Activates when a peripheral disconnects from the device for any reason besides disconnectPeripheral()
@@ -787,11 +871,8 @@ extension ViewController: CBCentralManagerDelegate {
         if error != nil {
             print("Reason: \(error!.localizedDescription)")
         }
-        locationManager.requestLocation()
         isDisconnectLocation = true
-//        if let loc = locationManager.location?.coordinate {
-//            notify(withMessage: "\(loc.latitude) \(loc.longitude)")
-//        }
+        locationManager.requestLocation()
             
         centralManager.connect(peripheral, options: nil)
         
