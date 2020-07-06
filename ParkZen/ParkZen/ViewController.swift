@@ -16,6 +16,7 @@ import UserNotifications
 import CoreBluetooth
 import ExternalAccessory
 import SwiftUI
+import AVFoundation
 
 
 class ViewController: UIViewController {
@@ -145,14 +146,20 @@ class ViewController: UIViewController {
         _ = Timer.scheduledTimer(timeInterval: 60.0, target: self, selector: #selector(ViewController.incrementAnnotations), userInfo: nil, repeats: true)
         
         
+        // Used for car connection (because most cars do not use BLE)
+        let audioSession: AVAudioSession = AVAudioSession.sharedInstance()
         
-//        BGTaskScheduler.shared.register(forTaskWithIdentifier:
-//            "sumocode.ParkZen.get_location",
-//                                        using: nil)
-//        {task in
-//            self.handleAppRefresh(task: task as! BGAppRefreshTask)
-//            print("1")
-//        }
+        do {
+            try audioSession.setCategory(AVAudioSession.Category.playAndRecord, options: [.allowBluetooth, .allowBluetoothA2DP, .allowAirPlay])
+            try audioSession.setActive(true)
+        } catch {
+             fatalError("Audio session failure")
+        }
+        
+        NotificationCenter.default.addObserver(self,
+                                               selector: #selector(handleRouteChange),
+                                               name: AVAudioSession.routeChangeNotification,
+                                               object: AVAudioSession.sharedInstance())
         
         //scheduleAppRefresh()
         
@@ -212,7 +219,6 @@ class ViewController: UIViewController {
         let savedLocs: [SumoCoordinate] = UserDefaults.standard.structArrayData(SumoCoordinate.self, forKey: fakeDatabaseSavedLocationsKey)
         
         for loc in savedLocs {
-            print("Woop")
             dropPin(CLLocationCoordinate2D(latitude: loc.latitude, longitude: loc.longitude), "0 minutes", loc.timeCreated)
         }
         
@@ -222,6 +228,36 @@ class ViewController: UIViewController {
     
     deinit {
         NotificationCenter.default.removeObserver(self)
+    }
+    
+    
+    // MARK: - AV Handler
+    
+    @objc func handleRouteChange(_ notification: Notification) {
+        guard let userInfo = notification.userInfo,
+            let reasonValue = userInfo[AVAudioSessionRouteChangeReasonKey] as? UInt,
+            let reason = AVAudioSession.RouteChangeReason(rawValue:reasonValue) else {
+                return
+        }
+        switch reason {
+        case .newDeviceAvailable:
+            print("Handle new device available.")
+            let session = AVAudioSession.sharedInstance()
+            for output in session.currentRoute.outputs {
+                print(output.portName)
+                print(output.portType)
+            }
+        case .oldDeviceUnavailable:
+            print("Handle old device removed.")
+            if let previousRoute =
+                userInfo[AVAudioSessionRouteChangePreviousRouteKey] as? AVAudioSessionRouteDescription {
+                for output in previousRoute.outputs {
+                    print(output.portName)
+                    print(output.portType)
+                }
+            }
+        default: ()
+        }
     }
     
     
@@ -602,7 +638,7 @@ class ViewController: UIViewController {
     }
 }
 
-// MARK: Map View Delegate
+// MARK: - Map View Delegate
 extension ViewController: MKMapViewDelegate {
     
     
@@ -650,7 +686,7 @@ extension ViewController: MKMapViewDelegate {
             })
             UserDefaults.standard.setStructArray(savedLocs, forKey: fakeDatabaseSavedLocationsKey)
             
-            // TODO: Do I need to delete it from the database here?  Yes.
+            // TODO: DATABASE Do I need to delete it from the database here?  Yes.
             return nil
         }
         
@@ -687,6 +723,8 @@ extension ViewController: MKMapViewDelegate {
         return MKOverlayRenderer(overlay: overlay)
     }
     
+    // Credit to Stack Overflow user Christopher Wade Cantley.
+    // https://stackoverflow.com/users/3750109/christopher-wade-cantley
     func textToImage(drawText text: String, inImage image: UIImage, atPoint point: CGPoint) -> UIImage {
         let textColor = UIColor.black
         let textFont = UIFont(name: "Helvetica Bold", size: 12)!
@@ -861,6 +899,8 @@ extension ViewController: CBCentralManagerDelegate {
     func centralManager(_ central: CBCentralManager, didConnect peripheral: CBPeripheral) {
         notify(withMessage: "Connected to \(peripheral.name ?? "Unnamed Device")")
         print("Connected to \(peripheral.name ?? "Unnamed Device")")
+        
+        
     }
     
     // Activates when a peripheral disconnects from the device for any reason besides disconnectPeripheral()

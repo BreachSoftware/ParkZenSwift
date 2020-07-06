@@ -1,5 +1,5 @@
 <?xml version="1.0" encoding="UTF-8"?>
-<document type="com.apple.InterfaceBuilder3.CocoaTouch.Storyboard.XIB" version="3.0" toolsVersion="16097" targetRuntime="iOS.CocoaTouch" propertyAccessControl="none" useAutolayout="YES" useTraitCollections="YES" useSafeAreas="YES" colorMatched="YES" initialViewController="BYZ-38-t0r">
+<document type="com.apple.InterfaceBuilder3.CocoaTouch.Storyboard.XIB" version="3.0" toolsVersion="16097" targetRuntime="iOS.CocoaTouch" propertyAccessControl="none" useAutolayout="YES" useTraitCollections="YES" useSafeAreas="YES" colorMatched="YES" initialViewController="eSt-Tr-ZM3">
     <device id="retina6_1" orientation="portrait" appearance="light"/>
     <dependencies>
         <plugIn identifier="com.apple.InterfaceBuilder.IBCocoaTouchPlugin" version="16087"/>
@@ -7,7 +7,7 @@
         <capability name="documents saved in the Xcode 8 format" minToolsVersion="8.0"/>
     </dependencies>
     <scenes>
-        <!--View Controller-->
+        <!--Parking-->
         <scene sceneID="tne-QT-ifu">
             <objects>
                 <viewController id="BYZ-38-t0r" customClass="ViewController" customModule="ParkZen" customModuleProvider="target" sceneMemberID="viewController">
@@ -16,7 +16,7 @@
                         <autoresizingMask key="autoresizingMask" widthSizable="YES" heightSizable="YES"/>
                         <subviews>
                             <mapView clipsSubviews="YES" multipleTouchEnabled="YES" contentMode="scaleToFill" mapType="standard" showsUserLocation="YES" showsScale="YES" translatesAutoresizingMaskIntoConstraints="NO" id="Iq6-ZS-SCP">
-                                <rect key="frame" x="0.0" y="244" width="414" height="618"/>
+                                <rect key="frame" x="0.0" y="244" width="414" height="569"/>
                             </mapView>
                             <label opaque="NO" userInteractionEnabled="NO" contentMode="left" horizontalHuggingPriority="251" verticalHuggingPriority="251" text="Latitude:" textAlignment="natural" lineBreakMode="tailTruncation" baselineAdjustment="alignBaselines" adjustsFontSizeToFit="NO" translatesAutoresizingMaskIntoConstraints="NO" id="4wW-11-fMT">
                                 <rect key="frame" x="20" y="44" width="68" height="21"/>
@@ -90,6 +90,7 @@
                         </constraints>
                         <viewLayoutGuide key="safeArea" id="6Tk-OE-BBY"/>
                     </view>
+                    <tabBarItem key="tabBarItem" title="Parking" image="magnifyingglass" catalog="system" id="cSg-TF-e7N"/>
                     <connections>
                         <outlet property="activitiesLabel" destination="ddB-a6-kSK" id="NGX-c2-e8H"/>
                         <outlet property="latitudeLabel" destination="bZi-gW-uyn" id="iWs-PQ-Avd"/>
@@ -100,7 +101,94 @@
                 </viewController>
                 <placeholder placeholderIdentifier="IBFirstResponder" id="dkx-z0-nzr" sceneMemberID="firstResponder"/>
             </objects>
-            <point key="canvasLocation" x="137.68115942028987" y="129.91071428571428"/>
+            <point key="canvasLocation" x="312" y="-447"/>
+        </scene>
+        <!--Account-->
+        <scene sceneID="JgO-tz-wUn">
+            <objects>
+                <viewController id="Tph-ev-QKC" sceneMemberID="viewController">
+                    <view key="view" contentMode="scaleToFill" id="KQh-Rq-v2s">
+                        <rect key="frame" x="0.0" y="0.0" width="414" height="896"/>
+                        <autoresizingMask key="autoresizingMask" widthSizable="YES" heightSizable="YES"/>
+                        <color key="backgroundColor" systemColor="systemBackgroundColor" cocoaTouchSystemColor="whiteColor"/>
+                        <viewLayoutGuide key="safeArea" id="WUR-gF-laD"/>
+                    </view>
+                    <tabBarItem key="tabBarItem" title="Account" image="person" catalog="system" id="EZT-6v-Ycr"/>
+                </viewController>
+                <placeholder placeholderIdentifier="IBFirstResponder" id="Qh1-Vn-Gjh" userLabel="First Responder" customClass="UIResponder" sceneMemberID="firstResponder"/>
+            </objects>
+            <point key="canvasLocation" x="313" y="407"/>
+        </scene>
+        <!--Main Tab Bar Controller-->
+        <scene sceneID="77p-cm-wy0">
+            <objects>
+                <tabBarController storyboardIdentifier="MainTabBarController" useStoryboardIdentifierAsRestorationIdentifier="YES" id="vmH-eZ-XOK" customClass="MainTabBarController" customModule="ParkZen" customModuleProvider="target" sceneMemberID="viewController">
+                    <tabBar key="tabBar" contentMode="scaleToFill" insetsLayoutMarginsFromSafeArea="NO" id="ppk-Nw-tha">
+                        <rect key="frame" x="0.0" y="0.0" width="414" height="49"/>
+                        <autoresizingMask key="autoresizingMask"/>
+                        <color key="backgroundColor" white="0.0" alpha="0.0" colorSpace="custom" customColorSpace="genericGamma22GrayColorSpace"/>
+                    </tabBar>
+                    <connections>
+                        <segue destination="BYZ-38-t0r" kind="relationship" relationship="viewControllers" id="ij1-3z-aQN"/>
+                        <segue destination="Tph-ev-QKC" kind="relationship" relationship="viewControllers" id="pnk-nh-D5A"/>
+                    </connections>
+                </tabBarController>
+                <placeholder placeholderIdentifier="IBFirstResponder" id="HMO-Q0-ufZ" userLabel="First Responder" customClass="UIResponder" sceneMemberID="firstResponder"/>
+            </objects>
+            <point key="canvasLocation" x="-1593" y="59"/>
+        </scene>
+        <!--Login View Controller-->
+        <scene sceneID="O2u-AU-VWw">
+            <objects>
+                <viewController storyboardIdentifier="LoginViewController" useStoryboardIdentifierAsRestorationIdentifier="YES" id="eSt-Tr-ZM3" customClass="LoginViewController" customModule="ParkZen" customModuleProvider="target" sceneMemberID="viewController">
+                    <view key="view" contentMode="scaleToFill" id="qzw-23-SVK">
+                        <rect key="frame" x="0.0" y="0.0" width="414" height="896"/>
+                        <autoresizingMask key="autoresizingMask" widthSizable="YES" heightSizable="YES"/>
+                        <subviews>
+                            <button opaque="NO" contentMode="scaleToFill" contentHorizontalAlignment="center" contentVerticalAlignment="center" buttonType="roundedRect" lineBreakMode="middleTruncation" hasAttributedTitle="YES" translatesAutoresizingMaskIntoConstraints="NO" id="Npq-ay-tJI">
+                                <rect key="frame" x="162" y="692" width="93" height="55"/>
+                                <state key="normal">
+                                    <attributedString key="attributedTitle">
+                                        <fragment content="Login">
+                                            <attributes>
+                                                <font key="NSFont" size="36" name="HelveticaNeue-Medium"/>
+                                                <paragraphStyle key="NSParagraphStyle" alignment="natural" lineBreakMode="wordWrapping" baseWritingDirection="natural" tighteningFactorForTruncation="0.0"/>
+                                            </attributes>
+                                        </fragment>
+                                    </attributedString>
+                                </state>
+                                <connections>
+                                    <action selector="loginTapped:" destination="eSt-Tr-ZM3" eventType="touchUpInside" id="8zh-IV-Klf"/>
+                                </connections>
+                            </button>
+                            <imageView clipsSubviews="YES" userInteractionEnabled="NO" contentMode="scaleAspectFit" horizontalHuggingPriority="251" verticalHuggingPriority="251" image="ParkZen_Spot1" translatesAutoresizingMaskIntoConstraints="NO" id="fU0-aa-mEX">
+                                <rect key="frame" x="0.0" y="0.0" width="414" height="896"/>
+                                <color key="backgroundColor" cocoaTouchSystemColor="darkTextColor"/>
+                            </imageView>
+                        </subviews>
+                        <color key="backgroundColor" systemColor="systemBackgroundColor" cocoaTouchSystemColor="whiteColor"/>
+                        <constraints>
+                            <constraint firstItem="fU0-aa-mEX" firstAttribute="centerX" secondItem="qzw-23-SVK" secondAttribute="centerX" id="L8Q-wR-mor"/>
+                            <constraint firstItem="Npq-ay-tJI" firstAttribute="leading" secondItem="I09-39-wUT" secondAttribute="leading" constant="162" id="TAB-a6-Ac6"/>
+                            <constraint firstItem="fU0-aa-mEX" firstAttribute="top" secondItem="qzw-23-SVK" secondAttribute="topMargin" constant="-44" id="aX4-sY-asp"/>
+                            <constraint firstItem="fU0-aa-mEX" firstAttribute="leading" secondItem="I09-39-wUT" secondAttribute="leading" id="cDi-16-SEo"/>
+                            <constraint firstItem="Npq-ay-tJI" firstAttribute="top" secondItem="I09-39-wUT" secondAttribute="top" constant="648" id="dys-kr-WHl"/>
+                            <constraint firstItem="fU0-aa-mEX" firstAttribute="centerY" secondItem="qzw-23-SVK" secondAttribute="centerY" id="eut-DR-tzC"/>
+                        </constraints>
+                        <viewLayoutGuide key="safeArea" id="I09-39-wUT"/>
+                    </view>
+                    <connections>
+                        <outlet property="splashScreen" destination="fU0-aa-mEX" id="cXM-jD-JzB"/>
+                    </connections>
+                </viewController>
+                <placeholder placeholderIdentifier="IBFirstResponder" id="tqf-lC-7dQ" userLabel="First Responder" customClass="UIResponder" sceneMemberID="firstResponder"/>
+            </objects>
+            <point key="canvasLocation" x="-2807.2463768115945" y="58.928571428571423"/>
         </scene>
     </scenes>
+    <resources>
+        <image name="ParkZen_Spot1" width="400" height="400"/>
+        <image name="magnifyingglass" catalog="system" width="128" height="115"/>
+        <image name="person" catalog="system" width="128" height="117"/>
+    </resources>
 </document>
