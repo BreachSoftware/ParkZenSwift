@@ -15,6 +15,7 @@
 		567E1A042436D7F900825A3B /* LaunchScreen.storyboard in Resources */ = {isa = PBXBuildFile; fileRef = 567E1A022436D7F900825A3B /* LaunchScreen.storyboard */; };
 		567F3F2B24AFAD9500428A68 /* MainTabBarController.swift in Sources */ = {isa = PBXBuildFile; fileRef = 567F3F2A24AFAD9500428A68 /* MainTabBarController.swift */; };
 		567F3F2D24AFAFC200428A68 /* LoginViewController.swift in Sources */ = {isa = PBXBuildFile; fileRef = 567F3F2C24AFAFC200428A68 /* LoginViewController.swift */; };
+		567F3F2F24B3AC7100428A68 /* ConnectedDevice.swift in Sources */ = {isa = PBXBuildFile; fileRef = 567F3F2E24B3AC7100428A68 /* ConnectedDevice.swift */; };
 		56A8A7BF2469CE9A00A88278 /* Geotification.swift in Sources */ = {isa = PBXBuildFile; fileRef = 56A8A7BE2469CE9A00A88278 /* Geotification.swift */; };
 		56A8A7C12469D44400A88278 /* Utilities.swift in Sources */ = {isa = PBXBuildFile; fileRef = 56A8A7C02469D44400A88278 /* Utilities.swift */; };
 		56EBC5F224ABB5C000D694B2 /* SumoAnnotation.swift in Sources */ = {isa = PBXBuildFile; fileRef = 56EBC5F124ABB5BF00D694B2 /* SumoAnnotation.swift */; };
@@ -31,6 +32,7 @@
 		567E1A052436D7F900825A3B /* Info.plist */ = {isa = PBXFileReference; lastKnownFileType = text.plist.xml; path = Info.plist; sourceTree = "<group>"; };
 		567F3F2A24AFAD9500428A68 /* MainTabBarController.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = MainTabBarController.swift; sourceTree = "<group>"; };
 		567F3F2C24AFAFC200428A68 /* LoginViewController.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = LoginViewController.swift; sourceTree = "<group>"; };
+		567F3F2E24B3AC7100428A68 /* ConnectedDevice.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ConnectedDevice.swift; sourceTree = "<group>"; };
 		56A8A7BE2469CE9A00A88278 /* Geotification.swift */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.swift; path = Geotification.swift; sourceTree = "<group>"; };
 		56A8A7C02469D44400A88278 /* Utilities.swift */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.swift; path = Utilities.swift; sourceTree = "<group>"; };
 		56A8A7C4246B36A800A88278 /* Apple.gpx */ = {isa = PBXFileReference; lastKnownFileType = text.xml; path = Apple.gpx; sourceTree = "<group>"; };
@@ -84,6 +86,7 @@
 				567E1A052436D7F900825A3B /* Info.plist */,
 				567F3F2A24AFAD9500428A68 /* MainTabBarController.swift */,
 				567F3F2C24AFAFC200428A68 /* LoginViewController.swift */,
+				567F3F2E24B3AC7100428A68 /* ConnectedDevice.swift */,
 			);
 			path = ParkZen;
 			sourceTree = "<group>";
@@ -165,6 +168,7 @@
 				567F3F2B24AFAD9500428A68 /* MainTabBarController.swift in Sources */,
 				567F3F2D24AFAFC200428A68 /* LoginViewController.swift in Sources */,
 				567E19FA2436D7F700825A3B /* SceneDelegate.swift in Sources */,
+				567F3F2F24B3AC7100428A68 /* ConnectedDevice.swift in Sources */,
 				56A8A7C12469D44400A88278 /* Utilities.swift in Sources */,
 				56A8A7BF2469CE9A00A88278 /* Geotification.swift in Sources */,
 			);

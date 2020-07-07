@@ -49,24 +49,90 @@ class ViewController: UIViewController {
     }
     
     // Struct for holding bluetooth peripheral info.
-    struct Peripheral: Codable {
+    class Peripheral: ConnectedDevice {
+        
+        // Keys for encoding/decoding
+        enum CodingKeys: String, CodingKey {
+            case name, uuid, isConnected
+        }
+        
         // Unique identifier for all BT peripherals.
-        var uuid: UUID = UUID()
-        // Usually optional (but not for us) name of the device.
-        var name: String = ""
-        // Records whether this devices has connected with us before and if it should autoconnect in the future.
-        var hasConnected: Bool = false
+        var uuid: UUID? = UUID()
+        
+        init(name: String, uuid: UUID, isConnected: Bool) {
+            super.init()
+            self.name = name
+            self.uuid = uuid
+            self.isConnected = isConnected
+        }
+        
+        required init(from decoder: Decoder) throws {
+            super.init()
+            // First we get a container.
+            let container = try decoder.container(keyedBy: CodingKeys.self)
+            // Then we can address the container, and try to get each property with a Key.
+            name = try container.decode(String.self, forKey: .name)
+            let uuidStr = try container.decode(String.self, forKey: .uuid)
+            uuid = UUID(uuidString: uuidStr) ?? UUID()
+            isConnected = try container.decode(Bool.self, forKey: .isConnected)
+        }
+        
+        override func encode(to encoder: Encoder) throws {
+            var container = encoder.container(keyedBy: CodingKeys.self)
+            try container.encode(name, forKey: .name)
+            try container.encode(uuid?.uuidString, forKey: .uuid)
+            try container.encode(isConnected, forKey: .isConnected)
+        }
     }
     
-    // Struct for holding the component displaying connected Bluetooth devices.
-    struct perifSwitchComponent {
+    
+    class AVDevice: ConnectedDevice {
+        
+        // Keys for encoding/decoding.
+        enum CodingKeys: String, CodingKey {
+            case name, type, isConnected
+        }
+        
+        // Audio port type of AV device.
+        var type: AVAudioSession.Port.RawValue? = ""
+        
+        
+        init(name: String, type: AVAudioSession.Port.RawValue, isConnected: Bool) {
+            super.init()
+            self.name = name
+            self.type = type
+            self.isConnected = isConnected
+        }
+        
+        required init(from decoder: Decoder) throws {
+            super.init()
+            // First we get a container.
+            let container = try decoder.container(keyedBy: CodingKeys.self)
+            // Then we can address the container, and try to get each property with a Key.
+            name = try container.decode(String.self, forKey: .name)
+            type = try container.decode(String.self, forKey: .type)
+            isConnected = try container.decode(Bool.self, forKey: .isConnected)
+        }
+        
+        override func encode(to encoder: Encoder) throws {
+            var container = encoder.container(keyedBy: CodingKeys.self)
+            try container.encode(name, forKey: .name)
+            try container.encode(type, forKey: .type)
+            try container.encode(isConnected, forKey: .isConnected)
+        }
+    }
+    
+    // A switch with a label.
+    struct SumoSwitch {
         // Label with name of the peripheral.
         var label: UILabel = UILabel()
         // Switch to turn connection to peripheral on or off.
         var uiSwitch: UISwitch = UISwitch()
-        // The data of the peripheral that is being controlled.
-        var savedPerifData: Peripheral = Peripheral()
+        // Saved device data (either a Peripheral or AVDevice)
+        var deviceData: ConnectedDevice = ConnectedDevice()
     }
+    
+    
     
     // Struct for saving most recent parked location coordinates so it's encodable.
     // I actually don't think this is the way to do this, but my only other idea is to create
@@ -112,7 +178,7 @@ class ViewController: UIViewController {
     // Hey buddy pretty sure both of these are unused now.
     
     // Used to keep track of the label and switches on the scroll view.
-    var perifSwitches: [perifSwitchComponent] = []
+    var deviceSwitches: [SumoSwitch] = []
     
     // Use to keep track of connected peripherals.  God this is a mess.
     // TODO: clean up all the different ways that I'm saving peripherals.
@@ -121,6 +187,10 @@ class ViewController: UIViewController {
     final var mostRecentSavedLocationKey = "RECENTLOC"
     
     final var fakeDatabaseSavedLocationsKey = "FAKEDATABASELOCATIONS"
+    
+    final let savedBLEConnectedDevicesKey = "SAVEDBLEDEVICES"
+    
+    final let savedAVConnectedDevicesKey = "SAVEDAVDEVICES"
     
     
     
@@ -139,7 +209,7 @@ class ViewController: UIViewController {
         
         // Turns bluetooth management on.
         centralManager = CBCentralManager(delegate: self, queue: nil, options: [CBCentralManagerOptionRestoreIdentifierKey : "restore.com.sumocode.parkzen"])
-
+        
         
         
         // Timer to increment the pins' timer once per minute.
@@ -150,10 +220,10 @@ class ViewController: UIViewController {
         let audioSession: AVAudioSession = AVAudioSession.sharedInstance()
         
         do {
-            try audioSession.setCategory(AVAudioSession.Category.playAndRecord, options: [.allowBluetooth, .allowBluetoothA2DP, .allowAirPlay])
+            try audioSession.setCategory(AVAudioSession.Category.playAndRecord, options: [.allowBluetooth, .allowBluetoothA2DP, .allowAirPlay,])
             try audioSession.setActive(true)
         } catch {
-             fatalError("Audio session failure")
+            fatalError("Audio session failure")
         }
         
         NotificationCenter.default.addObserver(self,
@@ -161,7 +231,6 @@ class ViewController: UIViewController {
                                                name: AVAudioSession.routeChangeNotification,
                                                object: AVAudioSession.sharedInstance())
         
-        //scheduleAppRefresh()
         
         // TODO: Clean this up.  Right now, it removes all geofences then adds the LSU one back and saves it.  We just need to load the LSU one.  But because it is saved on the app, in order to change it when the app is rebuilt I just delete it and resave it.  So in the future.  Just remember this is dumb.
         geotifications.removeAll()
@@ -195,39 +264,38 @@ class ViewController: UIViewController {
             
         }
         
-        NotificationCenter.default.addObserver(self, selector: #selector(reinstateBackgroundTask), name: UIApplication.didBecomeActiveNotification, object: nil)
+        //NotificationCenter.default.addObserver(self, selector: #selector(reinstateBackgroundTask), name: UIApplication.didBecomeActiveNotification, object: nil)
         
         
-        //let defaults = UserDefaults.standard
-        //defaults.set([], forKey: "Peripherals")
-        let savedPerifs: [Peripheral] = UserDefaults.standard.structArrayData(Peripheral.self, forKey: "Peripherals")
+        var savedPerifs: [ConnectedDevice] = getAllConnectedDevices()
+        
+        // Uncomment this to clear savedPerifs
+        //savedPerifs = []
+        //UserDefaults.standard.setStructArray(savedPerifs, forKey: savedBLEConnectedDevicesKey)
+        //UserDefaults.standard.setStructArray(savedPerifs, forKey: savedAVConnectedDevicesKey)
+
         
         // Loads all saved peripherals into the scroll view
         for perif in savedPerifs {
-            createNewBluetoothSelectComponent(perif: perif)
+            createNewBluetoothSelectComponent(device: perif)
         }
         
         
-        //UserDefaults.standard.setStruct(SumoCoordinate(), forKey: mostRecentSavedLocationKey)
         
-//        if let lastLoc = UserDefaults.standard.structData(SumoCoordinate.self, forKey: mostRecentSavedLocationKey) {
-//            dropPin(CLLocationCoordinate2D(latitude: lastLoc.latitude, longitude: lastLoc.longitude), "0 minutes", lastLoc.timeCreated)
-//        }
-        
-        
-        
+        // HERE MAX!  DO IT HERE
         let savedLocs: [SumoCoordinate] = UserDefaults.standard.structArrayData(SumoCoordinate.self, forKey: fakeDatabaseSavedLocationsKey)
         
         for loc in savedLocs {
             dropPin(CLLocationCoordinate2D(latitude: loc.latitude, longitude: loc.longitude), "0 minutes", loc.timeCreated)
         }
         
+        
+        
         incrementAnnotations()
         
     }
     
     deinit {
-        NotificationCenter.default.removeObserver(self)
     }
     
     
@@ -241,19 +309,19 @@ class ViewController: UIViewController {
         }
         switch reason {
         case .newDeviceAvailable:
-            print("Handle new device available.")
             let session = AVAudioSession.sharedInstance()
             for output in session.currentRoute.outputs {
-                print(output.portName)
-                print(output.portType)
+                print("New audio port: " + output.portName)
+                print("Port type: " + output.portType.rawValue)
             }
         case .oldDeviceUnavailable:
-            print("Handle old device removed.")
+            notify(withMessage: "\n Parking location saved! (AV)")
+            print("AV disconnection detected.  Parking location saved!")
             if let previousRoute =
                 userInfo[AVAudioSessionRouteChangePreviousRouteKey] as? AVAudioSessionRouteDescription {
                 for output in previousRoute.outputs {
-                    print(output.portName)
-                    print(output.portType)
+                    print("Disconnected port: " + output.portName)
+                    print("Disconnected type:" + output.portType.rawValue)
                 }
             }
         default: ()
@@ -262,37 +330,55 @@ class ViewController: UIViewController {
     
     
     // MARK: - Bluetooth Switches
-    func createNewBluetoothSelectComponent(perif: Peripheral) {
+    
+    func getAllConnectedDevices() -> [ConnectedDevice] {
+        let AVArray: [AVDevice] = UserDefaults.standard.structArrayData(AVDevice.self, forKey: savedAVConnectedDevicesKey)
+        let PerifArray: [Peripheral] = UserDefaults.standard.structArrayData(Peripheral.self, forKey: savedBLEConnectedDevicesKey)
+        var ret: [ConnectedDevice] = AVArray
+        var ret2: [ConnectedDevice] = []
+        ret.append(contentsOf: PerifArray)
+        for dev in ret {
+            if dev.isConnected {
+                ret2.insert(dev, at: 0)
+            }
+            else {
+                ret.append(dev)
+            }
+        }
+        return ret
+    }
+    
+    func createNewBluetoothSelectComponent(device: ConnectedDevice) {
         
         // Distance below top of scrollView to create the next switch component.
-        let y = perifSwitches.count * 40
+        let y = deviceSwitches.count * 40
         
         let label = UILabel(frame: CGRect(x: 0, y: 0, width: 200, height: 21))
-
+        
         // you will probably want to set the font (remember to use Dynamic Type!)
         label.font = UIFont.preferredFont(forTextStyle: .footnote)
-
+        
         // and set the text color too - remember good contrast
         label.textColor = .white
-
+        
         // may not be necessary (e.g., if the width & height match the superview)
         label.center = CGPoint(x: 60, y: y+13)
-
+        
         label.textAlignment = .center
-
-        label.text = perif.name
-
+        
+        label.text = device.name
+        
         // Adds the label to the scrollView.
         self.scrollView.addSubview(label)
         
         let perifSwitch = UISwitch(frame:CGRect(x: 150, y: y, width: 0, height: 0))
         perifSwitch.addTarget(self, action: #selector(ViewController.switchStateDidChange(_:)), for: .valueChanged)
-        perifSwitch.setOn(perif.hasConnected, animated: false)
+        perifSwitch.setOn(device.isConnected, animated: false)
         self.scrollView.addSubview(perifSwitch)
         
         // Creates a new perifSwitchComponent struct and then adds it to the list of switches.
-        let newSwitch = perifSwitchComponent(label: label, uiSwitch: perifSwitch, savedPerifData: perif)
-        perifSwitches.append(newSwitch)
+        let newSwitch = SumoSwitch(label: label, uiSwitch: perifSwitch, deviceData: device)
+        deviceSwitches.append(newSwitch)
         
         // Sets the size of the scrollView.
         self.scrollView.contentSize = CGSize(width: Int(self.scrollView.visibleSize.width), height: y + 40)
@@ -301,60 +387,89 @@ class ViewController: UIViewController {
     @objc func switchStateDidChange(_ sender:UISwitch!)
     {
         // Finds the correct switch
-        let which = findWhichSwitch(sw: sender)
+        let which: SumoSwitch = findWhichSwitch(sw: sender)
         
-        // If the button is turned on, add to activePeripherals
         if (sender.isOn == true) {
-            // Grabs the first (and only) returned peripheral based on the UUID
-            let activatedPeripheral = centralManager.retrievePeripherals(withIdentifiers: [which.savedPerifData.uuid]).first
-            if activatedPeripheral == nil {
-                print("Error: Device not available.")
-                return
+            if which.deviceData is Peripheral {
+                let perif: Peripheral = which.deviceData as! Peripheral
+                // Grabs the first (and only) returned peripheral based on the UUID
+                let activatedPeripheral = centralManager.retrievePeripherals(withIdentifiers: [perif.uuid!]).first
+                if activatedPeripheral == nil {
+                    print("Error: Device not available.")
+                    return
+                }
+                print("Perif Name: " + activatedPeripheral!.name!)
+                centralManager.registerForConnectionEvents(options: [CBConnectionEventMatchingOption.peripheralUUIDs : [activatedPeripheral!.identifier]])
+                centralManager.connect(activatedPeripheral!, options: nil)
+                if !connectedPeripherals.contains(activatedPeripheral!) {
+                    connectedPeripherals.append(activatedPeripheral!)
+                }
+                
+                savePeripheralChanges(changedPeripheralID: activatedPeripheral!.identifier, isConnected: true)
             }
-            print(activatedPeripheral?.name! ?? "ERR")
-            centralManager.registerForConnectionEvents(options: [CBConnectionEventMatchingOption.peripheralUUIDs : [activatedPeripheral!.identifier]])
-            centralManager.connect(activatedPeripheral!, options: nil)
-            if !connectedPeripherals.contains(activatedPeripheral!) {
-                connectedPeripherals.append(activatedPeripheral!)
+                
+            else if which.deviceData is AVDevice {
+                let dev: AVDevice = which.deviceData as! AVDevice
+                saveAVDeviceChanges(changedAVDeviceName: dev.name, isConnected: true)
             }
-            
-            
-            savePeripheralChanges(changedPeripheralID: activatedPeripheral!.identifier, isConnected: true)
-        
         }
         else {
-            connectedPeripherals.removeAll(where: {$0.identifier == which.savedPerifData.uuid})
-            savePeripheralChanges(changedPeripheralID: which.savedPerifData.uuid, isConnected: false)
+            if which.deviceData is Peripheral {
+                let perif: Peripheral = which.deviceData as! Peripheral
+                connectedPeripherals.removeAll(where: {$0.identifier == perif.uuid})
+                savePeripheralChanges(changedPeripheralID: perif.uuid!, isConnected: false)
+            }
+            else if which.deviceData is AVDevice {
+                let device: AVDevice = which.deviceData as! AVDevice
+                saveAVDeviceChanges(changedAVDeviceName: device.name, isConnected: false)
+            }
         }
     }
     
     // Finds the perifSwitchComponent that corresponds to UISwitch sw.
-    func findWhichSwitch(sw: UISwitch) -> perifSwitchComponent {
-        for p in perifSwitches {
+    func findWhichSwitch(sw: UISwitch) -> SumoSwitch {
+        for p in deviceSwitches {
             if p.uiSwitch == sw {
                 return p
             }
         }
-        return perifSwitchComponent()
+        return SumoSwitch()
     }
     
     func savePeripheralChanges(changedPeripheralID: UUID, isConnected: Bool) {
         // Get all saved Peripherals
         let defaults = UserDefaults.standard
-        var savedPerifs: [Peripheral] = defaults.structArrayData(Peripheral.self, forKey: "Peripherals")
-        
+        var savedDevices: [Peripheral] = defaults.structArrayData(Peripheral.self, forKey: savedBLEConnectedDevicesKey)
+
         // Check each saved uuid against the uuid of the activatedPeripheral
-        savedPerifs.forEach { (perif) in
-            if perif.uuid == changedPeripheralID {
-                // Once found, create a new peripheral with hasConnected = true
-                let newPerif = Peripheral(uuid: perif.uuid, name: perif.name, hasConnected: isConnected)
-                // Remove the old one, add the new one.
-                savedPerifs.removeAll(where: {$0.uuid == changedPeripheralID})
-                isConnected ? savedPerifs.insert(newPerif, at: 0) : savedPerifs.append(newPerif)
-            }
+        savedDevices.forEach { (perif) in
+            // Once found, create a new peripheral with hasConnected = true
+            let newPerif = Peripheral(name: perif.name, uuid: perif.uuid!, isConnected: isConnected)
+            // Remove the old one, add the new one.
+            savedDevices.removeAll(where: {$0.uuid == changedPeripheralID})
+            isConnected ? savedDevices.insert(newPerif, at: 0) : savedDevices.append(newPerif)
+
         }
         // Save it back to UserDefaults
-        defaults.setStructArray(savedPerifs, forKey: "Peripherals")
+        defaults.setStructArray(savedDevices, forKey: savedBLEConnectedDevicesKey)
+    }
+    
+    func saveAVDeviceChanges(changedAVDeviceName: String, isConnected: Bool) {
+        // Get all saved Peripherals
+        let defaults = UserDefaults.standard
+        var savedDevices: [AVDevice] = defaults.structArrayData(AVDevice.self, forKey: savedAVConnectedDevicesKey)
+        
+        // Check each saved uuid against the uuid of the activatedPeripheral
+        savedDevices.forEach { (device) in
+                // Once found, create a new peripheral with hasConnected = true
+                let newDevice = AVDevice(name: device.name, type: device.type!, isConnected: isConnected)
+                // Remove the old one, add the new one.
+            savedDevices.removeAll(where: {$0.name == changedAVDeviceName})
+                isConnected ? savedDevices.insert(newDevice, at: 0) : savedDevices.append(newDevice)
+            
+        }
+        // Save it back to UserDefaults
+        defaults.setStructArray(savedDevices, forKey: savedAVConnectedDevicesKey)
     }
     
     
@@ -438,14 +553,14 @@ class ViewController: UIViewController {
             
             // This doesn't work anymore and the fact that I wrote this thinking it would is a testament to my ability to
             // not think.
-//            if annotation.title!!.isNumeric {
-//                // There's gotta be a better way to take care of this but I don't know
-//                // type and string manipulation well enough in this language yet :p
-//                let str: String = annotation.title!!
-//                let num = Int(str)!
-//                dropPin(annotation.coordinate, String(num+1) + " minute" + (num == 1 ? "" : "s"))
-//                mapView.removeAnnotation(annotation)
-//            }
+            //            if annotation.title!!.isNumeric {
+            //                // There's gotta be a better way to take care of this but I don't know
+            //                // type and string manipulation well enough in this language yet :p
+            //                let str: String = annotation.title!!
+            //                let num = Int(str)!
+            //                dropPin(annotation.coordinate, String(num+1) + " minute" + (num == 1 ? "" : "s"))
+            //                mapView.removeAnnotation(annotation)
+            //            }
         }
     }
     
@@ -680,6 +795,7 @@ extension ViewController: MKMapViewDelegate {
         }
         else {
             mapView.removeAnnotation(annotation)
+            // MAX HERE
             var savedLocs: [SumoCoordinate] = UserDefaults.standard.structArrayData(SumoCoordinate.self, forKey: fakeDatabaseSavedLocationsKey)
             savedLocs.removeAll(where: {
                 Int(round(Date().timeIntervalSince1970 - $0.timeCreated)/60) > oldestAgeAllowed
@@ -693,13 +809,13 @@ extension ViewController: MKMapViewDelegate {
         // Sets image
         let offset = age < 10 ? 11 : 8
         myPinView.image = textToImage(drawText: String(age), inImage: UIImage(named: imageName)!, atPoint: CGPoint(x: offset, y: 7))
-                
+        
         // Add animation.
         //myPinView.animatesDrop = true
         
         // Display callouts.
         myPinView.canShowCallout = true
-
+        
         
         // Set annotation.
         //myPinView.annotation = annotation
@@ -728,22 +844,22 @@ extension ViewController: MKMapViewDelegate {
     func textToImage(drawText text: String, inImage image: UIImage, atPoint point: CGPoint) -> UIImage {
         let textColor = UIColor.black
         let textFont = UIFont(name: "Helvetica Bold", size: 12)!
-
+        
         let scale = UIScreen.main.scale
         UIGraphicsBeginImageContextWithOptions(image.size, false, scale)
-
+        
         let textFontAttributes = [
             NSAttributedString.Key.font: textFont,
             NSAttributedString.Key.foregroundColor: textColor,
             ] as [NSAttributedString.Key : Any]
         image.draw(in: CGRect(origin: CGPoint.zero, size: image.size))
-
+        
         let rect = CGRect(origin: point, size: image.size)
         text.draw(in: rect, withAttributes: textFontAttributes)
-
+        
         let newImage = UIGraphicsGetImageFromCurrentImageContext()
         UIGraphicsEndImageContext()
-
+        
         return newImage!
     }
 }
@@ -772,6 +888,7 @@ extension ViewController: CLLocationManagerDelegate {
                 // TODO: Make this save to the database.
                 defaults.setStruct(SumoCoordinate(coord: location.coordinate), forKey: mostRecentSavedLocationKey)
                 // Add location to the fake database of locations.
+                // MAX HERE ALSO
                 var locs: [SumoCoordinate] = defaults.structArrayData(SumoCoordinate.self, forKey: fakeDatabaseSavedLocationsKey)
                 locs.append(SumoCoordinate(coord: location.coordinate))
                 defaults.setStructArray(locs, forKey: fakeDatabaseSavedLocationsKey)
@@ -785,9 +902,9 @@ extension ViewController: CLLocationManagerDelegate {
         // Displays info at the top of the screen about location data.
         latitudeLabel.text = String(format: "%.6f", lastLocation.coordinate.latitude)
         longitudeLabel.text = String(format: "%.6f", lastLocation.coordinate.longitude)
-//        altitudeLabel.text = String(format: "%.6f", lastLocation.altitude)
-//        hAccuracyLabel.text = String(format: "%.6f", lastLocation.horizontalAccuracy)
-//        vAccuracyLabel.text = String(format: "%.6f", lastLocation.verticalAccuracy)
+        //        altitudeLabel.text = String(format: "%.6f", lastLocation.altitude)
+        //        hAccuracyLabel.text = String(format: "%.6f", lastLocation.horizontalAccuracy)
+        //        vAccuracyLabel.text = String(format: "%.6f", lastLocation.verticalAccuracy)
         
         // Runs when the app is opened to center the map to the user's location.
         if !initialized {
@@ -820,30 +937,30 @@ extension ViewController: CLLocationManagerDelegate {
 extension ViewController: CBCentralManagerDelegate {
     func centralManagerDidUpdateState(_ central: CBCentralManager) {
         switch central.state {
-            case .unknown:
-                print("central.state is .unknown")
-            case .resetting:
-                print("central.state is .resetting")
-            case .unsupported:
-                print("central.state is .unsupported")
-            case .unauthorized:
-                print("central.state is .unauthorized")
-            case .poweredOff:
-                print("central.state is .poweredOff")
-            case .poweredOn:
-                print("central.state is .poweredOn")
-                centralManager.scanForPeripherals(withServices: nil)
-                connectToMarkedPeripherals()
-            default:
-                print("turn ya noodle to nada")
+        case .unknown:
+            print("central.state is .unknown")
+        case .resetting:
+            print("central.state is .resetting")
+        case .unsupported:
+            print("central.state is .unsupported")
+        case .unauthorized:
+            print("central.state is .unauthorized")
+        case .poweredOff:
+            print("central.state is .poweredOff")
+        case .poweredOn:
+            print("central.state is .poweredOn")
+            centralManager.scanForPeripherals(withServices: nil)
+            connectToMarkedPeripherals()
+        default:
+            print("turn ya noodle to nada")
         }
     }
     
     func connectToMarkedPeripherals() {
         var identifiers: [UUID] = []
-        perifSwitches.forEach { (perifSwitch) in
-            if perifSwitch.savedPerifData.hasConnected {
-                identifiers.append(perifSwitch.savedPerifData.uuid)
+        deviceSwitches.forEach { (perifSwitch) in
+            if perifSwitch.deviceData is Peripheral && perifSwitch.deviceData.isConnected {
+                identifiers.append((perifSwitch.deviceData as! Peripheral).uuid!)
             }
         }
         let activatedPeripheral = centralManager.retrievePeripherals(withIdentifiers: identifiers)
@@ -861,36 +978,38 @@ extension ViewController: CBCentralManagerDelegate {
                         advertisementData: [String: Any], rssi RSSI: NSNumber) {
         // Get the saved Peripherals from the UserDefaults
         let defaults = UserDefaults.standard
-        var savedPerifs: [Peripheral] = UserDefaults.standard.structArrayData(Peripheral.self, forKey: "Peripherals")
-
+        var savedPerifs: [Peripheral] = UserDefaults.standard.structArrayData(Peripheral.self, forKey: savedBLEConnectedDevicesKey)
+        
+        
+        
         // Make sure the peripheral has a name, and check if it has already been saved
         if peripheral.name != nil && !arrayContainsId(array: savedPerifs, containsId: peripheral.identifier) {
             
             // Create a new Peripheral and add it to the saved list of peripherals
-            let newPerif = Peripheral(uuid: peripheral.identifier, name: peripheral.name!, hasConnected: false)
+            let newPerif = Peripheral(name: peripheral.name!, uuid: peripheral.identifier, isConnected: false)
             savedPerifs.append(newPerif)
-            print(peripheral.name!)
+            print("did Discover: " + peripheral.name!)
             
             // Save it back to UserDefaults
-            defaults.setStructArray(savedPerifs, forKey: "Peripherals")
+            defaults.setStructArray(savedPerifs, forKey: savedBLEConnectedDevicesKey)
             
             // Display the name on screen
             //peripheralListLabel.text = peripheralListLabel.text! + "\n" + peripheral.name!
-            createNewBluetoothSelectComponent(perif: newPerif)
+            createNewBluetoothSelectComponent(device: newPerif)
         }
-
+        
     }
     
     
     // Activates when any connection event occures
     func centralManager(_ central: CBCentralManager, connectionEventDidOccur event: CBConnectionEvent,
-    for peripheral: CBPeripheral) {
+                        for peripheral: CBPeripheral) {
         switch event {
         case .peerConnected:
             notify(withMessage: (peripheral.name ?? "Unnamed Device") + " has connected.")
             print((peripheral.name ?? "Unnamed Device") + " has connected. ")
         case .peerDisconnected:
-            break // didDisconnectPeripheral handles this for us.
+        break // didDisconnectPeripheral handles this for us.
         default:
             print("Default case: CentralManager:ConnectionEventDidOccur")
         }
@@ -905,7 +1024,7 @@ extension ViewController: CBCentralManagerDelegate {
     
     // Activates when a peripheral disconnects from the device for any reason besides disconnectPeripheral()
     func centralManager(_ central: CBCentralManager, didDisconnectPeripheral peripheral: CBPeripheral,
-    error: Error?) {
+                        error: Error?) {
         notify(withMessage: (peripheral.name ?? "Unnamed Device") + " has disconnected.")
         print((peripheral.name ?? "Unnamed Device") + " has disconnected. ", terminator: "")
         if error != nil {
@@ -913,7 +1032,7 @@ extension ViewController: CBCentralManagerDelegate {
         }
         isDisconnectLocation = true
         locationManager.requestLocation()
-            
+        
         centralManager.connect(peripheral, options: nil)
         
     }
@@ -921,7 +1040,7 @@ extension ViewController: CBCentralManagerDelegate {
     
     func centralManager(_ central: CBCentralManager, willRestoreState dict: [String : Any]) {
         notify(withMessage: "Restoring state.")
-
+        
         if let peripherals = dict[CBCentralManagerRestoredStatePeripheralsKey] as? [CBPeripheral] {
             peripherals.forEach { (awakedPeripheral) in
                 print("Awaked peripheral \(awakedPeripheral.name ?? "Unnamed Device")")
@@ -970,8 +1089,10 @@ extension UserDefaults {
     }
     
     open func setStructArray<T: Codable>(_ value: [T], forKey defaultName: String){
-        let data = value.map { try? JSONEncoder().encode($0) }
-        
+        let data = value.map {
+            try? JSONEncoder().encode($0)
+        }
+
         set(data, forKey: defaultName)
     }
     
