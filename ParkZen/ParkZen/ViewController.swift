@@ -90,17 +90,20 @@ class ViewController: UIViewController {
         
         // Keys for encoding/decoding.
         enum CodingKeys: String, CodingKey {
-            case name, type, isConnected
+            case name, type, uid, isConnected
         }
         
         // Audio port type of AV device.
         var type: AVAudioSession.Port.RawValue? = ""
+        var uid: String = ""
         
         
-        init(name: String, type: AVAudioSession.Port.RawValue, isConnected: Bool) {
+        
+        init(name: String, type: AVAudioSession.Port.RawValue, uid: String, isConnected: Bool) {
             super.init()
             self.name = name
             self.type = type
+            self.uid = uid
             self.isConnected = isConnected
         }
         
@@ -111,6 +114,7 @@ class ViewController: UIViewController {
             // Then we can address the container, and try to get each property with a Key.
             name = try container.decode(String.self, forKey: .name)
             type = try container.decode(String.self, forKey: .type)
+            uid = try container.decode(String.self, forKey: .uid)
             isConnected = try container.decode(Bool.self, forKey: .isConnected)
         }
         
@@ -118,6 +122,7 @@ class ViewController: UIViewController {
             var container = encoder.container(keyedBy: CodingKeys.self)
             try container.encode(name, forKey: .name)
             try container.encode(type, forKey: .type)
+            try container.encode(uid, forKey: .uid)
             try container.encode(isConnected, forKey: .isConnected)
         }
     }
@@ -208,7 +213,7 @@ class ViewController: UIViewController {
         mapView.showsUserLocation = true
         
         // Turns bluetooth management on.
-        centralManager = CBCentralManager(delegate: self, queue: nil, options: [CBCentralManagerOptionRestoreIdentifierKey : "restore.com.sumocode.parkzen"])
+        centralManager = CBCentralManager(delegate: self, queue: nil, options: [CBCentralManagerOptionRestoreIdentifierKey : "restore.com.sumocode.parkzen", CBConnectPeripheralOptionEnableTransportBridgingKey : true])
         
         
         
@@ -270,10 +275,9 @@ class ViewController: UIViewController {
         var savedPerifs: [ConnectedDevice] = getAllConnectedDevices()
         
         // Uncomment this to clear savedPerifs
-        //savedPerifs = []
-        //UserDefaults.standard.setStructArray(savedPerifs, forKey: savedBLEConnectedDevicesKey)
-        //UserDefaults.standard.setStructArray(savedPerifs, forKey: savedAVConnectedDevicesKey)
-
+        savedPerifs = []
+        UserDefaults.standard.setStructArray(savedPerifs, forKey: savedBLEConnectedDevicesKey)
+        UserDefaults.standard.setStructArray(savedPerifs, forKey: savedAVConnectedDevicesKey)
         
         // Loads all saved peripherals into the scroll view
         for perif in savedPerifs {
@@ -310,18 +314,36 @@ class ViewController: UIViewController {
         switch reason {
         case .newDeviceAvailable:
             let session = AVAudioSession.sharedInstance()
+                        
             for output in session.currentRoute.outputs {
                 print("New audio port: " + output.portName)
                 print("Port type: " + output.portType.rawValue)
+                
+                if output.portType == .bluetoothHFP {
+                    
+                    DispatchQueue.main.async {
+                        self.notify(withMessage: "Possible new car detected. Would you like to set this as your car?")
+                    }
+                    
+                }
+                DispatchQueue.main.async {
+                    self.createNewBluetoothSelectComponent(device: AVDevice(name: output.portName, type: output.portType.rawValue, uid: output.uid, isConnected: false))
+                    
+                    //print("Anotha one")
+                }
+
+                
             }
         case .oldDeviceUnavailable:
-            notify(withMessage: "\n Parking location saved! (AV)")
+            DispatchQueue.main.async {
+                self.notify(withMessage: "Parking location saved! (AV)")
+            }
             print("AV disconnection detected.  Parking location saved!")
             if let previousRoute =
                 userInfo[AVAudioSessionRouteChangePreviousRouteKey] as? AVAudioSessionRouteDescription {
                 for output in previousRoute.outputs {
                     print("Disconnected port: " + output.portName)
-                    print("Disconnected type:" + output.portType.rawValue)
+                    print("Disconnected type: " + output.portType.rawValue)
                 }
             }
         default: ()
@@ -335,17 +357,17 @@ class ViewController: UIViewController {
         let AVArray: [AVDevice] = UserDefaults.standard.structArrayData(AVDevice.self, forKey: savedAVConnectedDevicesKey)
         let PerifArray: [Peripheral] = UserDefaults.standard.structArrayData(Peripheral.self, forKey: savedBLEConnectedDevicesKey)
         var ret: [ConnectedDevice] = AVArray
-        var ret2: [ConnectedDevice] = []
         ret.append(contentsOf: PerifArray)
+        var ret2: [ConnectedDevice] = []
         for dev in ret {
             if dev.isConnected {
                 ret2.insert(dev, at: 0)
             }
             else {
-                ret.append(dev)
+                ret2.append(dev)
             }
         }
-        return ret
+        return ret2
     }
     
     func createNewBluetoothSelectComponent(device: ConnectedDevice) {
@@ -399,6 +421,7 @@ class ViewController: UIViewController {
                     return
                 }
                 print("Perif Name: " + activatedPeripheral!.name!)
+                centralManager.connect(activatedPeripheral!, options: [:])
                 centralManager.registerForConnectionEvents(options: [CBConnectionEventMatchingOption.peripheralUUIDs : [activatedPeripheral!.identifier]])
                 centralManager.connect(activatedPeripheral!, options: nil)
                 if !connectedPeripherals.contains(activatedPeripheral!) {
@@ -416,6 +439,10 @@ class ViewController: UIViewController {
         else {
             if which.deviceData is Peripheral {
                 let perif: Peripheral = which.deviceData as! Peripheral
+                if connectedPeripherals.first(where: {$0.identifier == perif.uuid}) != nil {
+                    print("Disconnected from \(perif.name)")
+                    centralManager.cancelPeripheralConnection(connectedPeripherals.first(where: {$0.identifier == perif.uuid})!)
+                }
                 connectedPeripherals.removeAll(where: {$0.identifier == perif.uuid})
                 savePeripheralChanges(changedPeripheralID: perif.uuid!, isConnected: false)
             }
@@ -443,12 +470,13 @@ class ViewController: UIViewController {
 
         // Check each saved uuid against the uuid of the activatedPeripheral
         savedDevices.forEach { (perif) in
-            // Once found, create a new peripheral with hasConnected = true
-            let newPerif = Peripheral(name: perif.name, uuid: perif.uuid!, isConnected: isConnected)
-            // Remove the old one, add the new one.
-            savedDevices.removeAll(where: {$0.uuid == changedPeripheralID})
-            isConnected ? savedDevices.insert(newPerif, at: 0) : savedDevices.append(newPerif)
-
+            if perif.uuid == changedPeripheralID {
+                // Once found, create a new peripheral with hasConnected = true
+                let newPerif = Peripheral(name: perif.name, uuid: perif.uuid!, isConnected: isConnected)
+                // Remove the old one, add the new one.
+                savedDevices.removeAll(where: {$0.uuid == changedPeripheralID})
+                isConnected ? savedDevices.insert(newPerif, at: 0) : savedDevices.append(newPerif)
+            }
         }
         // Save it back to UserDefaults
         defaults.setStructArray(savedDevices, forKey: savedBLEConnectedDevicesKey)
@@ -462,7 +490,7 @@ class ViewController: UIViewController {
         // Check each saved uuid against the uuid of the activatedPeripheral
         savedDevices.forEach { (device) in
                 // Once found, create a new peripheral with hasConnected = true
-                let newDevice = AVDevice(name: device.name, type: device.type!, isConnected: isConnected)
+            let newDevice = AVDevice(name: device.name, type: device.type!, uid: device.uid, isConnected: isConnected)
                 // Remove the old one, add the new one.
             savedDevices.removeAll(where: {$0.name == changedAVDeviceName})
                 isConnected ? savedDevices.insert(newDevice, at: 0) : savedDevices.append(newDevice)
@@ -1037,21 +1065,23 @@ extension ViewController: CBCentralManagerDelegate {
         
     }
     
-    
     func centralManager(_ central: CBCentralManager, willRestoreState dict: [String : Any]) {
         notify(withMessage: "Restoring state.")
         
         if let peripherals = dict[CBCentralManagerRestoredStatePeripheralsKey] as? [CBPeripheral] {
             peripherals.forEach { (awakedPeripheral) in
                 print("Awaked peripheral \(awakedPeripheral.name ?? "Unnamed Device")")
-                //notify(withMessage: "Awaked peripheral \(awakedPeripheral.name ?? "Unnamed Device")")
+                notify(withMessage: "Awaked peripheral \(awakedPeripheral.name ?? "Unnamed Device")")
+
                 centralManager.connect(awakedPeripheral, options: nil)
+                
                 if !connectedPeripherals.contains(awakedPeripheral) {
                     connectedPeripherals.append(awakedPeripheral)
                 }
             }
         }
     }
+
     
     func peripheral(_ peripheral: CBPeripheral, didUpdateValueFor characteristic: CBCharacteristic, error: Error?) {
         print("Peripheral value changed for \(peripheral.name ?? "Unnamed Device")")
