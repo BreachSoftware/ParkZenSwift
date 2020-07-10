@@ -27,6 +27,12 @@ class ViewController: UIViewController {
     @IBOutlet weak var mapView: MKMapView!
     @IBOutlet weak var scrollView: UIScrollView!
     
+    final var mostRecentSavedLocationKey = "RECENTLOC"
+    final var fakeDatabaseSavedLocationsKey = "FAKEDATABASELOCATIONS"
+    final let savedBLEConnectedDevicesKey = "SAVEDBLEDEVICES"
+    final let savedAVConnectedDevicesKey = "SAVEDAVDEVICES"
+    final let travelGeofenceIdentifier = "TRAVELGEOFENCE"
+    
     
     // MARK: Properties
     
@@ -46,85 +52,6 @@ class ViewController: UIViewController {
         var id: String = "unknown"
         // Confidence value (0, 1, or 2) of how sure the system is of the activity.  2 is highest.
         var conf: Int = 0
-    }
-    
-    // Struct for holding bluetooth peripheral info.
-    class Peripheral: ConnectedDevice {
-        
-        // Keys for encoding/decoding
-        enum CodingKeys: String, CodingKey {
-            case name, uuid, isConnected
-        }
-        
-        // Unique identifier for all BT peripherals.
-        var uuid: UUID? = UUID()
-        
-        init(name: String, uuid: UUID, isConnected: Bool) {
-            super.init()
-            self.name = name
-            self.uuid = uuid
-            self.isConnected = isConnected
-        }
-        
-        required init(from decoder: Decoder) throws {
-            super.init()
-            // First we get a container.
-            let container = try decoder.container(keyedBy: CodingKeys.self)
-            // Then we can address the container, and try to get each property with a Key.
-            name = try container.decode(String.self, forKey: .name)
-            let uuidStr = try container.decode(String.self, forKey: .uuid)
-            uuid = UUID(uuidString: uuidStr) ?? UUID()
-            isConnected = try container.decode(Bool.self, forKey: .isConnected)
-        }
-        
-        override func encode(to encoder: Encoder) throws {
-            var container = encoder.container(keyedBy: CodingKeys.self)
-            try container.encode(name, forKey: .name)
-            try container.encode(uuid?.uuidString, forKey: .uuid)
-            try container.encode(isConnected, forKey: .isConnected)
-        }
-    }
-    
-    
-    class AVDevice: ConnectedDevice {
-        
-        // Keys for encoding/decoding.
-        enum CodingKeys: String, CodingKey {
-            case name, type, uid, isConnected
-        }
-        
-        // Audio port type of AV device.
-        var type: AVAudioSession.Port.RawValue? = ""
-        var uid: String = ""
-        
-        
-        
-        init(name: String, type: AVAudioSession.Port.RawValue, uid: String, isConnected: Bool) {
-            super.init()
-            self.name = name
-            self.type = type
-            self.uid = uid
-            self.isConnected = isConnected
-        }
-        
-        required init(from decoder: Decoder) throws {
-            super.init()
-            // First we get a container.
-            let container = try decoder.container(keyedBy: CodingKeys.self)
-            // Then we can address the container, and try to get each property with a Key.
-            name = try container.decode(String.self, forKey: .name)
-            type = try container.decode(String.self, forKey: .type)
-            uid = try container.decode(String.self, forKey: .uid)
-            isConnected = try container.decode(Bool.self, forKey: .isConnected)
-        }
-        
-        override func encode(to encoder: Encoder) throws {
-            var container = encoder.container(keyedBy: CodingKeys.self)
-            try container.encode(name, forKey: .name)
-            try container.encode(type, forKey: .type)
-            try container.encode(uid, forKey: .uid)
-            try container.encode(isConnected, forKey: .isConnected)
-        }
     }
     
     // A switch with a label.
@@ -177,27 +104,28 @@ class ViewController: UIViewController {
     
     // This is probably not the best way to do this!!
     // True only if this is a background refresh.
-    var isDisconnectLocation: Bool = false;
+    //var isDisconnectLocation: Bool = false;
+    enum LocationReason {
+        case isNone
+        case isDisconnectLocation
+        case isTravelGeofence
+    }
+    
+    // Whatever.
+    public var locationReason: LocationReason = LocationReason.isNone
+    
     // Also only for BG refresh, returns if location is found (so it can end the task).
     var gotLocationInBG: Bool = false;
     // Hey buddy pretty sure both of these are unused now.
     
     // Used to keep track of the label and switches on the scroll view.
-    var deviceSwitches: [SumoSwitch] = []
+    var deviceSwitches: [DeviceSwitch] = []
     
     // Use to keep track of connected peripherals.  God this is a mess.
     // TODO: clean up all the different ways that I'm saving peripherals.
     var connectedPeripherals: [CBPeripheral] = []
     
-    final var mostRecentSavedLocationKey = "RECENTLOC"
-    
-    final var fakeDatabaseSavedLocationsKey = "FAKEDATABASELOCATIONS"
-    
-    final let savedBLEConnectedDevicesKey = "SAVEDBLEDEVICES"
-    
-    final let savedAVConnectedDevicesKey = "SAVEDAVDEVICES"
-    
-    
+
     
     //MARK: - Initialization
     override func viewDidLoad() {
@@ -208,13 +136,15 @@ class ViewController: UIViewController {
         locationManager.requestWhenInUseAuthorization()
         locationManager.startUpdatingLocation()
         
+        locationManager.startMonitoringSignificantLocationChanges()
+        
         mapView.delegate = self
         
         mapView.showsUserLocation = true
         
+        
         // Turns bluetooth management on.
         centralManager = CBCentralManager(delegate: self, queue: nil, options: [CBCentralManagerOptionRestoreIdentifierKey : "restore.com.sumocode.parkzen", CBConnectPeripheralOptionEnableTransportBridgingKey : true])
-        
         
         
         // Timer to increment the pins' timer once per minute.
@@ -231,26 +161,28 @@ class ViewController: UIViewController {
             fatalError("Audio session failure")
         }
         
+        // Runs the function ViewController:handleRouteChange() whenever a new audio device is found to have connected.  This only works in the foreground or background, but not suspended.
         NotificationCenter.default.addObserver(self,
                                                selector: #selector(handleRouteChange),
                                                name: AVAudioSession.routeChangeNotification,
                                                object: AVAudioSession.sharedInstance())
         
         
+        NotificationCenter.default.addObserver(self,
+                                               selector: #selector(sendingToBackground),
+                                               name: UIApplication.didEnterBackgroundNotification,
+                                               object: nil)
+        
+        
+        
+        
+        
+        
         // TODO: Clean this up.  Right now, it removes all geofences then adds the LSU one back and saves it.  We just need to load the LSU one.  But because it is saved on the app, in order to change it when the app is rebuilt I just delete it and resave it.  So in the future.  Just remember this is dumb.
+        // ALSO, this might totally mess stuff up with the TravelGeofences.
         geotifications.removeAll()
-        let encoder = JSONEncoder()
-        do {
-            let data = try encoder.encode(geotifications)
-            UserDefaults.standard.set(data, forKey: "savedItems")
-        } catch {
-            print("error encoding geotifications")
-        }
-        let allGeotifications = Geotification.allGeotifications()
-        allGeotifications.forEach {
-            print($0.coordinate)
-        }
-        if allGeotifications.count == 0 {
+        saveAllGeotifications()
+        if geotifications.count == 0 {
             let geotification = Geotification(coordinate: lsuCoords.coordinate, radius: 1000, identifier: "lsu", note: "Entered LSU", eventType: .onEntry)
             add(geotification)
             startMonitoring(geotification: geotification)
@@ -262,14 +194,8 @@ class ViewController: UIViewController {
                 print("error encoding geotifications")
             }
         } else {
-            allGeotifications.forEach {
-                add($0)
-                startMonitoring(geotification: $0)
-            }
-            
+            loadAllGeotifications()
         }
-        
-        //NotificationCenter.default.addObserver(self, selector: #selector(reinstateBackgroundTask), name: UIApplication.didBecomeActiveNotification, object: nil)
         
         
         var savedPerifs: [ConnectedDevice] = getAllConnectedDevices()
@@ -281,10 +207,8 @@ class ViewController: UIViewController {
         
         // Loads all saved peripherals into the scroll view
         for perif in savedPerifs {
-            createNewBluetoothSelectComponent(device: perif)
+            createNewDeviceSelectComponent(device: perif)
         }
-        
-        
         
         // HERE MAX!  DO IT HERE
         let savedLocs: [SumoCoordinate] = UserDefaults.standard.structArrayData(SumoCoordinate.self, forKey: fakeDatabaseSavedLocationsKey)
@@ -293,8 +217,6 @@ class ViewController: UIViewController {
             dropPin(CLLocationCoordinate2D(latitude: loc.latitude, longitude: loc.longitude), "0 minutes", loc.timeCreated)
         }
         
-        
-        
         incrementAnnotations()
         
     }
@@ -302,9 +224,13 @@ class ViewController: UIViewController {
     deinit {
     }
     
+    @objc func sendingToBackground() {
+        locationReason = .isTravelGeofence
+    }
+    
     
     // MARK: - AV Handler
-    
+    // This is called whenever a new audio route (another device to play music on) is connected to the iPhone, called by the Observer in Initialization.
     @objc func handleRouteChange(_ notification: Notification) {
         guard let userInfo = notification.userInfo,
             let reasonValue = userInfo[AVAudioSessionRouteChangeReasonKey] as? UInt,
@@ -314,11 +240,12 @@ class ViewController: UIViewController {
         switch reason {
         case .newDeviceAvailable:
             let session = AVAudioSession.sharedInstance()
-                        
+            
             for output in session.currentRoute.outputs {
                 print("New audio port: " + output.portName)
                 print("Port type: " + output.portType.rawValue)
                 
+                // If the output is a HFP (Hands Free Profile), prompt the user to select it as a new car.
                 if output.portType == .bluetoothHFP {
                     
                     DispatchQueue.main.async {
@@ -326,24 +253,25 @@ class ViewController: UIViewController {
                     }
                     
                 }
+                // Create a new Switch on the bluetooth select page.
                 DispatchQueue.main.async {
-                    self.createNewBluetoothSelectComponent(device: AVDevice(name: output.portName, type: output.portType.rawValue, uid: output.uid, isConnected: false))
+                    self.createNewDeviceSelectComponent(device: AVDevice(name: output.portName, type: output.portType.rawValue, uid: output.uid, isConnected: false))
                     
                     //print("Anotha one")
                 }
-
+                
                 
             }
         case .oldDeviceUnavailable:
-            DispatchQueue.main.async {
-                self.notify(withMessage: "Parking location saved! (AV)")
-            }
-            print("AV disconnection detected.  Parking location saved!")
             if let previousRoute =
                 userInfo[AVAudioSessionRouteChangePreviousRouteKey] as? AVAudioSessionRouteDescription {
                 for output in previousRoute.outputs {
+                    // Saves current location when the previous audio device is disconnected.
                     print("Disconnected port: " + output.portName)
                     print("Disconnected type: " + output.portType.rawValue)
+                    DispatchQueue.main.async {
+                        self.notify(withMessage: "Parking location saved! (AV)")
+                    }
                 }
             }
         default: ()
@@ -353,12 +281,14 @@ class ViewController: UIViewController {
     
     // MARK: - Bluetooth Switches
     
+    // Returns all devices that have connected before in a heterogeneous array of ConnectedDevices
     func getAllConnectedDevices() -> [ConnectedDevice] {
         let AVArray: [AVDevice] = UserDefaults.standard.structArrayData(AVDevice.self, forKey: savedAVConnectedDevicesKey)
         let PerifArray: [Peripheral] = UserDefaults.standard.structArrayData(Peripheral.self, forKey: savedBLEConnectedDevicesKey)
         var ret: [ConnectedDevice] = AVArray
         ret.append(contentsOf: PerifArray)
         var ret2: [ConnectedDevice] = []
+        // Adds all the isConnected devices to the front of the array, and all the non-connected devices to the end.
         for dev in ret {
             if dev.isConnected {
                 ret2.insert(dev, at: 0)
@@ -370,50 +300,23 @@ class ViewController: UIViewController {
         return ret2
     }
     
-    func createNewBluetoothSelectComponent(device: ConnectedDevice) {
-        
-        // Distance below top of scrollView to create the next switch component.
-        let y = deviceSwitches.count * 40
-        
-        let label = UILabel(frame: CGRect(x: 0, y: 0, width: 200, height: 21))
-        
-        // you will probably want to set the font (remember to use Dynamic Type!)
-        label.font = UIFont.preferredFont(forTextStyle: .footnote)
-        
-        // and set the text color too - remember good contrast
-        label.textColor = .white
-        
-        // may not be necessary (e.g., if the width & height match the superview)
-        label.center = CGPoint(x: 60, y: y+13)
-        
-        label.textAlignment = .center
-        
-        label.text = device.name
-        
-        // Adds the label to the scrollView.
-        self.scrollView.addSubview(label)
-        
-        let perifSwitch = UISwitch(frame:CGRect(x: 150, y: y, width: 0, height: 0))
-        perifSwitch.addTarget(self, action: #selector(ViewController.switchStateDidChange(_:)), for: .valueChanged)
-        perifSwitch.setOn(device.isConnected, animated: false)
-        self.scrollView.addSubview(perifSwitch)
-        
-        // Creates a new perifSwitchComponent struct and then adds it to the list of switches.
-        let newSwitch = SumoSwitch(label: label, uiSwitch: perifSwitch, deviceData: device)
-        deviceSwitches.append(newSwitch)
-        
-        // Sets the size of the scrollView.
-        self.scrollView.contentSize = CGSize(width: Int(self.scrollView.visibleSize.width), height: y + 40)
+    
+    func createNewDeviceSelectComponent(device: ConnectedDevice) {
+        let newComponent = DeviceSwitch(device: device, y: 40*deviceSwitches.count)
+        deviceSwitches.append(newComponent)
+        scrollView.addSubview(newComponent)
+        self.scrollView.contentSize = CGSize(width: Int(self.scrollView.visibleSize.width), height: 40*deviceSwitches.count)
     }
+
     
     @objc func switchStateDidChange(_ sender:UISwitch!)
     {
         // Finds the correct switch
-        let which: SumoSwitch = findWhichSwitch(sw: sender)
+        let which: DeviceSwitch = findWhichSwitch(sw: sender)!
         
         if (sender.isOn == true) {
-            if which.deviceData is Peripheral {
-                let perif: Peripheral = which.deviceData as! Peripheral
+            if which.device is Peripheral {
+                let perif: Peripheral = which.device as! Peripheral
                 // Grabs the first (and only) returned peripheral based on the UUID
                 let activatedPeripheral = centralManager.retrievePeripherals(withIdentifiers: [perif.uuid!]).first
                 if activatedPeripheral == nil {
@@ -428,140 +331,43 @@ class ViewController: UIViewController {
                     connectedPeripherals.append(activatedPeripheral!)
                 }
                 
-                savePeripheralChanges(changedPeripheralID: activatedPeripheral!.identifier, isConnected: true)
+                Peripheral.savePeripheralChanges(changedPeripheralID: activatedPeripheral!.identifier, isConnected: true)
             }
                 
-            else if which.deviceData is AVDevice {
-                let dev: AVDevice = which.deviceData as! AVDevice
-                saveAVDeviceChanges(changedAVDeviceName: dev.name, isConnected: true)
+            else if which.device is AVDevice {
+                let dev: AVDevice = which.device as! AVDevice
+                AVDevice.saveAVDeviceChanges(changedAVDeviceName: dev.name, isConnected: true)
             }
         }
         else {
-            if which.deviceData is Peripheral {
-                let perif: Peripheral = which.deviceData as! Peripheral
+            if which.device is Peripheral {
+                // If the switch is turned off and that device was a BLE perif, then disconnect from that perif.
+                let perif: Peripheral = which.device as! Peripheral
                 if connectedPeripherals.first(where: {$0.identifier == perif.uuid}) != nil {
                     print("Disconnected from \(perif.name)")
                     centralManager.cancelPeripheralConnection(connectedPeripherals.first(where: {$0.identifier == perif.uuid})!)
                 }
+                // Remove the perif from the connected list, and save it.
                 connectedPeripherals.removeAll(where: {$0.identifier == perif.uuid})
-                savePeripheralChanges(changedPeripheralID: perif.uuid!, isConnected: false)
+                Peripheral.savePeripheralChanges(changedPeripheralID: perif.uuid!, isConnected: false)
             }
-            else if which.deviceData is AVDevice {
-                let device: AVDevice = which.deviceData as! AVDevice
-                saveAVDeviceChanges(changedAVDeviceName: device.name, isConnected: false)
+            else if which.device is AVDevice {
+                // If the switch is turned off and
+                let device: AVDevice = which.device as! AVDevice
+                AVDevice.saveAVDeviceChanges(changedAVDeviceName: device.name, isConnected: false)
             }
         }
     }
     
     // Finds the perifSwitchComponent that corresponds to UISwitch sw.
-    func findWhichSwitch(sw: UISwitch) -> SumoSwitch {
+    func findWhichSwitch(sw: UISwitch) -> DeviceSwitch? {
         for p in deviceSwitches {
             if p.uiSwitch == sw {
                 return p
             }
         }
-        return SumoSwitch()
+        return nil
     }
-    
-    func savePeripheralChanges(changedPeripheralID: UUID, isConnected: Bool) {
-        // Get all saved Peripherals
-        let defaults = UserDefaults.standard
-        var savedDevices: [Peripheral] = defaults.structArrayData(Peripheral.self, forKey: savedBLEConnectedDevicesKey)
-
-        // Check each saved uuid against the uuid of the activatedPeripheral
-        savedDevices.forEach { (perif) in
-            if perif.uuid == changedPeripheralID {
-                // Once found, create a new peripheral with hasConnected = true
-                let newPerif = Peripheral(name: perif.name, uuid: perif.uuid!, isConnected: isConnected)
-                // Remove the old one, add the new one.
-                savedDevices.removeAll(where: {$0.uuid == changedPeripheralID})
-                isConnected ? savedDevices.insert(newPerif, at: 0) : savedDevices.append(newPerif)
-            }
-        }
-        // Save it back to UserDefaults
-        defaults.setStructArray(savedDevices, forKey: savedBLEConnectedDevicesKey)
-    }
-    
-    func saveAVDeviceChanges(changedAVDeviceName: String, isConnected: Bool) {
-        // Get all saved Peripherals
-        let defaults = UserDefaults.standard
-        var savedDevices: [AVDevice] = defaults.structArrayData(AVDevice.self, forKey: savedAVConnectedDevicesKey)
-        
-        // Check each saved uuid against the uuid of the activatedPeripheral
-        savedDevices.forEach { (device) in
-                // Once found, create a new peripheral with hasConnected = true
-            let newDevice = AVDevice(name: device.name, type: device.type!, uid: device.uid, isConnected: isConnected)
-                // Remove the old one, add the new one.
-            savedDevices.removeAll(where: {$0.name == changedAVDeviceName})
-                isConnected ? savedDevices.insert(newDevice, at: 0) : savedDevices.append(newDevice)
-            
-        }
-        // Save it back to UserDefaults
-        defaults.setStructArray(savedDevices, forKey: savedAVConnectedDevicesKey)
-    }
-    
-    
-    
-    // MARK: - Background Updates
-    // Registers a background task to run when the app closes.
-    func registerBackgroundTask() {
-        backgroundTask = UIApplication.shared.beginBackgroundTask { [weak self] in
-            self?.endBackgroundTask()
-        }
-        assert(backgroundTask != .invalid)
-    }
-    
-    // Runs when the background task completes or when the iOS decides that it's had enough of running it (after about 3 minutes of run time)
-    func endBackgroundTask() {
-        print("Background task ended.")
-        UIApplication.shared.endBackgroundTask(backgroundTask)
-        backgroundTask = .invalid
-    }
-    
-    // Reruns the task whenever the app is opened and then closed again.
-    @objc func reinstateBackgroundTask() {
-        if backgroundTask == .invalid {
-            //registerBackgroundTask()
-        }
-    }
-    
-    
-    // MARK: - Scheduling
-    // Creates a request task to run a quick location check every 30 seconds
-    // This won't work.  Also this is for when the app is terminated.
-    func scheduleAppRefresh() {
-        let request = BGAppRefreshTaskRequest(identifier: "sumocode.ParkZen.get_location")
-        // Fetch no earlier than 30 seconds from now
-        request.earliestBeginDate = Date(timeIntervalSinceNow: 30)
-        print("Scheduling...")
-        do {
-            try BGTaskScheduler.shared.submit(request)
-            print("Success!")
-        } catch {
-            print("Could not schedule app refresh: \(error)")
-        }
-    }
-    
-    
-    // Handles the request made in scheduleAppRefresh() when it is called.
-    // When the system opens the app in the background, it calls the launch handler to run the task.
-    func handleAppRefresh(task: BGAppRefreshTask) {
-        // Schedule a new refresh task
-        print("Rescheduling...")
-        notify()
-        
-        scheduleAppRefresh()
-        
-        // Ends the task when a location is returned.
-        task.setTaskCompleted(success: gotLocationInBG)
-    }
-    
-    
-    override func didReceiveMemoryWarning() {
-        super.didReceiveMemoryWarning()
-        // Dispose of any resources that can be recreated.
-    }
-    
     
     // MARK: - Location and Pin Stuff
     // Increments the timer on all of the pins that are not the User Location.
@@ -578,17 +384,6 @@ class ViewController: UIViewController {
                 dropPin(annotation.coordinate, String(age) + " minute" + (age == 1 ? "" : "s"), timeStamp)
                 mapView.removeAnnotation(annotation)
             }
-            
-            // This doesn't work anymore and the fact that I wrote this thinking it would is a testament to my ability to
-            // not think.
-            //            if annotation.title!!.isNumeric {
-            //                // There's gotta be a better way to take care of this but I don't know
-            //                // type and string manipulation well enough in this language yet :p
-            //                let str: String = annotation.title!!
-            //                let num = Int(str)!
-            //                dropPin(annotation.coordinate, String(num+1) + " minute" + (num == 1 ? "" : "s"))
-            //                mapView.removeAnnotation(annotation)
-            //            }
         }
     }
     
@@ -616,9 +411,6 @@ class ViewController: UIViewController {
         
         // Set the title.
         myPin.title = title
-        
-        // Set subtitle.
-        myPin.subtitle = "subtitle"
         
         // Added pins to MapView.
         self.mapView.addAnnotation(myPin)
@@ -704,11 +496,53 @@ class ViewController: UIViewController {
         return region
     }
     
+    // Adds a geofence to the saved geofences, then adds it to the map (the map is just for testing).
     func add(_ geotification: Geotification) {
         geotifications.append(geotification)
         mapView.addAnnotation(geotification)
         mapView?.addOverlay(MKCircle(center: geotification.coordinate, radius: geotification.radius))
     }
+    
+    func remove(_ geotification: Geotification) {
+        guard let index = geotifications.firstIndex(of: geotification) else { return }
+        geotifications.remove(at: index)
+        mapView.removeAnnotation(geotification)
+        removeRadiusOverlay(forGeotification: geotification)
+        //updateGeotificationsCount()
+    }
+    
+    // Removes the overlay on the map for the specified geofence.
+    func removeRadiusOverlay(forGeotification geotification: Geotification) {
+        // Find exactly one overlay which has the same coordinates & radius to remove
+        guard let overlays = mapView?.overlays else { return }
+        for overlay in overlays {
+            guard let circleOverlay = overlay as? MKCircle else { continue }
+            let coord = circleOverlay.coordinate
+            if coord.latitude == geotification.coordinate.latitude && coord.longitude == geotification.coordinate.longitude && circleOverlay.radius == geotification.radius {
+                mapView?.removeOverlay(circleOverlay)
+                break
+            }
+        }
+    }
+    
+    
+    func loadAllGeotifications() {
+        geotifications.removeAll()
+        let allGeotifications = Geotification.allGeotifications()
+        allGeotifications.forEach { add($0) }
+    }
+    
+    
+    func saveAllGeotifications() {
+        let encoder = JSONEncoder()
+        do {
+            let data = try encoder.encode(geotifications)
+            UserDefaults.standard.set(data, forKey: "savedItems")
+        } catch {
+            print("error encoding geotifications")
+        }
+    }
+    
     
     func startMonitoring(geotification: Geotification) {
         if !CLLocationManager.isMonitoringAvailable(for: CLCircularRegion.self) {
@@ -745,6 +579,18 @@ class ViewController: UIViewController {
     
     func handleEvent(for region: CLRegion!) {
         //beginActivityMonitor()
+    }
+    
+    func startTravelGeofencing(location: CLLocationCoordinate2D) {
+        for geo in geotifications {
+            if geo.identifier == travelGeofenceIdentifier {
+                remove(geo)
+            }
+        }
+        let geotification = Geotification(coordinate: location, radius: 300, identifier: travelGeofenceIdentifier, note: "", eventType: .onExit)
+        add(geotification)
+        startMonitoring(geotification: geotification)
+        saveAllGeotifications()
     }
     
     //MARK: - Notifications
@@ -906,8 +752,8 @@ extension ViewController: CLLocationManagerDelegate {
     func locationManager(_ manager: CLLocationManager, didUpdateLocations locations: [CLLocation]) {
         
         // Only is true if this is called from a disconnection event.  Otherwise, we don't want this to run, but we want to use the rest of the code for other stuff.
-        if isDisconnectLocation {
-            isDisconnectLocation = false
+        if locationReason == .isDisconnectLocation {
+            locationReason = .isNone
             if let location = locations.first {
                 notify(withMessage: "Parking location saved!")
                 print("Parking location saved!")
@@ -920,6 +766,14 @@ extension ViewController: CLLocationManagerDelegate {
                 var locs: [SumoCoordinate] = defaults.structArrayData(SumoCoordinate.self, forKey: fakeDatabaseSavedLocationsKey)
                 locs.append(SumoCoordinate(coord: location.coordinate))
                 defaults.setStructArray(locs, forKey: fakeDatabaseSavedLocationsKey)
+            }
+            return
+        }
+        
+        if locationReason == .isTravelGeofence {
+            locationReason = .isNone
+            if locations.first != nil {
+                startTravelGeofencing(location: locations.first!.coordinate)
             }
             return
         }
@@ -954,8 +808,19 @@ extension ViewController: CLLocationManagerDelegate {
     
     func locationManager(_ manager: CLLocationManager, didExitRegion region: CLRegion) {
         if region is CLCircularRegion {
-            //stopActivityMonitor()
-            //print("ViewController:stopActivityMonitor()")
+            if region.identifier == travelGeofenceIdentifier {
+                for geo in geotifications {
+                    if geo.identifier == region.identifier {
+                        stopMonitoring(geotification: geo)
+                        remove(geo)
+                        geotifications.removeAll(where: {$0.identifier == geo.identifier})
+                    }
+                }
+                saveAllGeotifications()
+                locationReason = .isTravelGeofence
+                locationManager.requestLocation()
+                
+            }
         }
     }
 }
@@ -987,8 +852,8 @@ extension ViewController: CBCentralManagerDelegate {
     func connectToMarkedPeripherals() {
         var identifiers: [UUID] = []
         deviceSwitches.forEach { (perifSwitch) in
-            if perifSwitch.deviceData is Peripheral && perifSwitch.deviceData.isConnected {
-                identifiers.append((perifSwitch.deviceData as! Peripheral).uuid!)
+            if perifSwitch.device is Peripheral && perifSwitch.device.isConnected {
+                identifiers.append((perifSwitch.device as! Peripheral).uuid!)
             }
         }
         let activatedPeripheral = centralManager.retrievePeripherals(withIdentifiers: identifiers)
@@ -1023,7 +888,7 @@ extension ViewController: CBCentralManagerDelegate {
             
             // Display the name on screen
             //peripheralListLabel.text = peripheralListLabel.text! + "\n" + peripheral.name!
-            createNewBluetoothSelectComponent(device: newPerif)
+            createNewDeviceSelectComponent(device: newPerif)
         }
         
     }
@@ -1058,7 +923,7 @@ extension ViewController: CBCentralManagerDelegate {
         if error != nil {
             print("Reason: \(error!.localizedDescription)")
         }
-        isDisconnectLocation = true
+        locationReason = .isDisconnectLocation
         locationManager.requestLocation()
         
         centralManager.connect(peripheral, options: nil)
@@ -1072,7 +937,7 @@ extension ViewController: CBCentralManagerDelegate {
             peripherals.forEach { (awakedPeripheral) in
                 print("Awaked peripheral \(awakedPeripheral.name ?? "Unnamed Device")")
                 notify(withMessage: "Awaked peripheral \(awakedPeripheral.name ?? "Unnamed Device")")
-
+                
                 centralManager.connect(awakedPeripheral, options: nil)
                 
                 if !connectedPeripherals.contains(awakedPeripheral) {
@@ -1081,7 +946,7 @@ extension ViewController: CBCentralManagerDelegate {
             }
         }
     }
-
+    
     
     func peripheral(_ peripheral: CBPeripheral, didUpdateValueFor characteristic: CBCharacteristic, error: Error?) {
         print("Peripheral value changed for \(peripheral.name ?? "Unnamed Device")")
@@ -1122,7 +987,7 @@ extension UserDefaults {
         let data = value.map {
             try? JSONEncoder().encode($0)
         }
-
+        
         set(data, forKey: defaultName)
     }
     

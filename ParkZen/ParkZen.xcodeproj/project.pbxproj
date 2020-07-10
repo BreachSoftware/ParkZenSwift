@@ -7,6 +7,8 @@
 	objects = {
 
 /* Begin PBXBuildFile section */
+		5605B02F24B902C500F4BF59 /* Peripheral.swift in Sources */ = {isa = PBXBuildFile; fileRef = 5605B02E24B902C500F4BF59 /* Peripheral.swift */; };
+		5605B03124B9032B00F4BF59 /* AVDevice.swift in Sources */ = {isa = PBXBuildFile; fileRef = 5605B03024B9032B00F4BF59 /* AVDevice.swift */; };
 		567E19F82436D7F700825A3B /* AppDelegate.swift in Sources */ = {isa = PBXBuildFile; fileRef = 567E19F72436D7F700825A3B /* AppDelegate.swift */; };
 		567E19FA2436D7F700825A3B /* SceneDelegate.swift in Sources */ = {isa = PBXBuildFile; fileRef = 567E19F92436D7F700825A3B /* SceneDelegate.swift */; };
 		567E19FC2436D7F700825A3B /* ViewController.swift in Sources */ = {isa = PBXBuildFile; fileRef = 567E19FB2436D7F700825A3B /* ViewController.swift */; };
@@ -16,12 +18,15 @@
 		567F3F2B24AFAD9500428A68 /* MainTabBarController.swift in Sources */ = {isa = PBXBuildFile; fileRef = 567F3F2A24AFAD9500428A68 /* MainTabBarController.swift */; };
 		567F3F2D24AFAFC200428A68 /* LoginViewController.swift in Sources */ = {isa = PBXBuildFile; fileRef = 567F3F2C24AFAFC200428A68 /* LoginViewController.swift */; };
 		567F3F2F24B3AC7100428A68 /* ConnectedDevice.swift in Sources */ = {isa = PBXBuildFile; fileRef = 567F3F2E24B3AC7100428A68 /* ConnectedDevice.swift */; };
+		567F3F3324B8EE1400428A68 /* DeviceSwitch.swift in Sources */ = {isa = PBXBuildFile; fileRef = 567F3F3224B8EE1300428A68 /* DeviceSwitch.swift */; };
 		56A8A7BF2469CE9A00A88278 /* Geotification.swift in Sources */ = {isa = PBXBuildFile; fileRef = 56A8A7BE2469CE9A00A88278 /* Geotification.swift */; };
 		56A8A7C12469D44400A88278 /* Utilities.swift in Sources */ = {isa = PBXBuildFile; fileRef = 56A8A7C02469D44400A88278 /* Utilities.swift */; };
 		56EBC5F224ABB5C000D694B2 /* SumoAnnotation.swift in Sources */ = {isa = PBXBuildFile; fileRef = 56EBC5F124ABB5BF00D694B2 /* SumoAnnotation.swift */; };
 /* End PBXBuildFile section */
 
 /* Begin PBXFileReference section */
+		5605B02E24B902C500F4BF59 /* Peripheral.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = Peripheral.swift; sourceTree = "<group>"; };
+		5605B03024B9032B00F4BF59 /* AVDevice.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AVDevice.swift; sourceTree = "<group>"; };
 		567E19F42436D7F700825A3B /* ParkZen.app */ = {isa = PBXFileReference; explicitFileType = wrapper.application; includeInIndex = 0; path = ParkZen.app; sourceTree = BUILT_PRODUCTS_DIR; };
 		567E19F72436D7F700825A3B /* AppDelegate.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AppDelegate.swift; sourceTree = "<group>"; };
 		567E19F92436D7F700825A3B /* SceneDelegate.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SceneDelegate.swift; sourceTree = "<group>"; };
@@ -33,6 +38,7 @@
 		567F3F2A24AFAD9500428A68 /* MainTabBarController.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = MainTabBarController.swift; sourceTree = "<group>"; };
 		567F3F2C24AFAFC200428A68 /* LoginViewController.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = LoginViewController.swift; sourceTree = "<group>"; };
 		567F3F2E24B3AC7100428A68 /* ConnectedDevice.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ConnectedDevice.swift; sourceTree = "<group>"; };
+		567F3F3224B8EE1300428A68 /* DeviceSwitch.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = DeviceSwitch.swift; sourceTree = "<group>"; };
 		56A8A7BE2469CE9A00A88278 /* Geotification.swift */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.swift; path = Geotification.swift; sourceTree = "<group>"; };
 		56A8A7C02469D44400A88278 /* Utilities.swift */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.swift; path = Utilities.swift; sourceTree = "<group>"; };
 		56A8A7C4246B36A800A88278 /* Apple.gpx */ = {isa = PBXFileReference; lastKnownFileType = text.xml; path = Apple.gpx; sourceTree = "<group>"; };
@@ -76,6 +82,9 @@
 				56A8A7C6246B36B200A88278 /* SimulatedLocations.gpx */,
 				567E19F72436D7F700825A3B /* AppDelegate.swift */,
 				567E19F92436D7F700825A3B /* SceneDelegate.swift */,
+				567F3F3224B8EE1300428A68 /* DeviceSwitch.swift */,
+				5605B02E24B902C500F4BF59 /* Peripheral.swift */,
+				5605B03024B9032B00F4BF59 /* AVDevice.swift */,
 				56EBC5F124ABB5BF00D694B2 /* SumoAnnotation.swift */,
 				567E19FB2436D7F700825A3B /* ViewController.swift */,
 				56A8A7BE2469CE9A00A88278 /* Geotification.swift */,
@@ -162,12 +171,15 @@
 			isa = PBXSourcesBuildPhase;
 			buildActionMask = 2147483647;
 			files = (
+				5605B03124B9032B00F4BF59 /* AVDevice.swift in Sources */,
 				56EBC5F224ABB5C000D694B2 /* SumoAnnotation.swift in Sources */,
+				5605B02F24B902C500F4BF59 /* Peripheral.swift in Sources */,
 				567E19FC2436D7F700825A3B /* ViewController.swift in Sources */,
 				567E19F82436D7F700825A3B /* AppDelegate.swift in Sources */,
 				567F3F2B24AFAD9500428A68 /* MainTabBarController.swift in Sources */,
 				567F3F2D24AFAFC200428A68 /* LoginViewController.swift in Sources */,
 				567E19FA2436D7F700825A3B /* SceneDelegate.swift in Sources */,
+				567F3F3324B8EE1400428A68 /* DeviceSwitch.swift in Sources */,
 				567F3F2F24B3AC7100428A68 /* ConnectedDevice.swift in Sources */,
 				56A8A7C12469D44400A88278 /* Utilities.swift in Sources */,
 				56A8A7BF2469CE9A00A88278 /* Geotification.swift in Sources */,
