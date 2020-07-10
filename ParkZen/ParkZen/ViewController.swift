@@ -71,19 +71,6 @@ class ViewController: UIViewController {
     // an entire class that is encodable and writing an encode() function like in Geotification.swift,
     // but jeez that seems like a whole lot of sweat for something that doesn't help anything as far
     // as I can tell, so I'm leaving it like this for now.
-    struct SumoCoordinate: Codable {
-        var latitude: Double = 0
-        var longitude: Double = 0
-        var timeCreated: Double = Date().timeIntervalSince1970
-        
-        init() {
-        }
-        
-        init(coord: CLLocationCoordinate2D) {
-            self.latitude = coord.latitude
-            self.longitude = coord.longitude
-        }
-    }
     
     // For bluetooth management
     var centralManager: CBCentralManager!
@@ -130,6 +117,8 @@ class ViewController: UIViewController {
     //MARK: - Initialization
     override func viewDidLoad() {
         super.viewDidLoad()
+
+        
         
         locationManager.desiredAccuracy = kCLLocationAccuracyBest
         locationManager.delegate = self
@@ -142,6 +131,19 @@ class ViewController: UIViewController {
         
         mapView.showsUserLocation = true
         
+        let db = DatabaseDelegate(map: mapView)
+        let loc1 = SumoCoordinate(lat: 30.412630, lon: -91.177604)
+        let loc2 = SumoCoordinate(lat: 30.412884, lon: -91.179256)
+        let loc3 = SumoCoordinate(lat: 30.413668, lon: -91.179143)
+        let loc4 = SumoCoordinate(lat: 30.413024, lon: -91.174954)
+        
+//        db.write(location: loc1)
+//        db.write(location: loc2)
+//        db.write(location: loc3)
+//        db.write(location: loc4)
+        
+        db.read()
+
         
         // Turns bluetooth management on.
         centralManager = CBCentralManager(delegate: self, queue: nil, options: [CBCentralManagerOptionRestoreIdentifierKey : "restore.com.sumocode.parkzen", CBConnectPeripheralOptionEnableTransportBridgingKey : true])
@@ -401,16 +403,10 @@ class ViewController: UIViewController {
         // let allAnnotations = self.mapView.annotations
         //self.mapView.removeAnnotations(allAnnotations)
         
-        let myPin: SumoAnnotation = SumoAnnotation()
+        let myPin: SumoAnnotation = SumoAnnotation(sc: SumoCoordinate(coord: coord), title: title!)
         
         // Set the time stamp.
         myPin.timeStamp = timeStamp
-        
-        // Set the coordinates.
-        myPin.coordinate = coord
-        
-        // Set the title.
-        myPin.title = title
         
         // Added pins to MapView.
         self.mapView.addAnnotation(myPin)
