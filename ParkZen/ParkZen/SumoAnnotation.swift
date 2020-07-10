@@ -13,4 +13,10 @@ import MapKit
 class SumoAnnotation: MKPointAnnotation {
     var image: String!
     var timeStamp: Double! = Date().timeIntervalSince1970
+    
+    init(sc: SumoCoordinate, title: String){
+        super.init()
+        self.title = title
+        self.coordinate = CLLocationCoordinate2D(latitude: sc.latitude, longitude: sc.longitude)
+    }
 }

@@ -3,10 +3,14 @@
 	archiveVersion = 1;
 	classes = {
 	};
-	objectVersion = 50;
+	objectVersion = 51;
 	objects = {
 
 /* Begin PBXBuildFile section */
+		38E928FE7D740F88B6B9E320 /* Pods_ParkZen.framework in Frameworks */ = {isa = PBXBuildFile; fileRef = DFE9358FE8A0B159EF37EA10 /* Pods_ParkZen.framework */; };
+		50A5719524B4F2B1008A66C9 /* GoogleService-Info.plist in Resources */ = {isa = PBXBuildFile; fileRef = 50A5719424B4F2B1008A66C9 /* GoogleService-Info.plist */; };
+		50A5719724B4F3D6008A66C9 /* DatabaseDelegate.swift in Sources */ = {isa = PBXBuildFile; fileRef = 50A5719624B4F3D5008A66C9 /* DatabaseDelegate.swift */; };
+		50A5719924B64F9D008A66C9 /* SumoCoordinate.swift in Sources */ = {isa = PBXBuildFile; fileRef = 50A5719824B64F9D008A66C9 /* SumoCoordinate.swift */; };
 		567E19F82436D7F700825A3B /* AppDelegate.swift in Sources */ = {isa = PBXBuildFile; fileRef = 567E19F72436D7F700825A3B /* AppDelegate.swift */; };
 		567E19FA2436D7F700825A3B /* SceneDelegate.swift in Sources */ = {isa = PBXBuildFile; fileRef = 567E19F92436D7F700825A3B /* SceneDelegate.swift */; };
 		567E19FC2436D7F700825A3B /* ViewController.swift in Sources */ = {isa = PBXBuildFile; fileRef = 567E19FB2436D7F700825A3B /* ViewController.swift */; };
@@ -22,6 +26,9 @@
 /* End PBXBuildFile section */
 
 /* Begin PBXFileReference section */
+		50A5719424B4F2B1008A66C9 /* GoogleService-Info.plist */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = text.plist.xml; path = "GoogleService-Info.plist"; sourceTree = "<group>"; };
+		50A5719624B4F3D5008A66C9 /* DatabaseDelegate.swift */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.swift; path = DatabaseDelegate.swift; sourceTree = "<group>"; };
+		50A5719824B64F9D008A66C9 /* SumoCoordinate.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SumoCoordinate.swift; sourceTree = "<group>"; };
 		567E19F42436D7F700825A3B /* ParkZen.app */ = {isa = PBXFileReference; explicitFileType = wrapper.application; includeInIndex = 0; path = ParkZen.app; sourceTree = BUILT_PRODUCTS_DIR; };
 		567E19F72436D7F700825A3B /* AppDelegate.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AppDelegate.swift; sourceTree = "<group>"; };
 		567E19F92436D7F700825A3B /* SceneDelegate.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SceneDelegate.swift; sourceTree = "<group>"; };
@@ -39,6 +46,9 @@
 		56A8A7C5246B36AB00A88278 /* Google.gpx */ = {isa = PBXFileReference; lastKnownFileType = text.xml; path = Google.gpx; sourceTree = "<group>"; };
 		56A8A7C6246B36B200A88278 /* SimulatedLocations.gpx */ = {isa = PBXFileReference; lastKnownFileType = text.xml; path = SimulatedLocations.gpx; sourceTree = "<group>"; };
 		56EBC5F124ABB5BF00D694B2 /* SumoAnnotation.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SumoAnnotation.swift; sourceTree = "<group>"; };
+		612466084915D6706E87B3EE /* Pods-ParkZen.debug.xcconfig */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = text.xcconfig; name = "Pods-ParkZen.debug.xcconfig"; path = "Target Support Files/Pods-ParkZen/Pods-ParkZen.debug.xcconfig"; sourceTree = "<group>"; };
+		9C8E617B0E37FF47DC63D454 /* Pods-ParkZen.release.xcconfig */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = text.xcconfig; name = "Pods-ParkZen.release.xcconfig"; path = "Target Support Files/Pods-ParkZen/Pods-ParkZen.release.xcconfig"; sourceTree = "<group>"; };
+		DFE9358FE8A0B159EF37EA10 /* Pods_ParkZen.framework */ = {isa = PBXFileReference; explicitFileType = wrapper.framework; includeInIndex = 0; path = Pods_ParkZen.framework; sourceTree = BUILT_PRODUCTS_DIR; };
 /* End PBXFileReference section */
 
 /* Begin PBXFrameworksBuildPhase section */
@@ -46,6 +56,7 @@
 			isa = PBXFrameworksBuildPhase;
 			buildActionMask = 2147483647;
 			files = (
+				38E928FE7D740F88B6B9E320 /* Pods_ParkZen.framework in Frameworks */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};
@@ -57,6 +68,8 @@
 			children = (
 				567E19F62436D7F700825A3B /* ParkZen */,
 				567E19F52436D7F700825A3B /* Products */,
+				7939696B1DB3125DD438E772 /* Pods */,
+				FC25F11F5DA3F8D0E38EC603 /* Frameworks */,
 			);
 			sourceTree = "<group>";
 		};
@@ -77,10 +90,13 @@
 				567E19F72436D7F700825A3B /* AppDelegate.swift */,
 				567E19F92436D7F700825A3B /* SceneDelegate.swift */,
 				56EBC5F124ABB5BF00D694B2 /* SumoAnnotation.swift */,
+				50A5719624B4F3D5008A66C9 /* DatabaseDelegate.swift */,
 				567E19FB2436D7F700825A3B /* ViewController.swift */,
+				50A5719824B64F9D008A66C9 /* SumoCoordinate.swift */,
 				56A8A7BE2469CE9A00A88278 /* Geotification.swift */,
 				56A8A7C02469D44400A88278 /* Utilities.swift */,
 				567E19FD2436D7F700825A3B /* Main.storyboard */,
+				50A5719424B4F2B1008A66C9 /* GoogleService-Info.plist */,
 				567E1A002436D7F900825A3B /* Assets.xcassets */,
 				567E1A022436D7F900825A3B /* LaunchScreen.storyboard */,
 				567E1A052436D7F900825A3B /* Info.plist */,
@@ -91,6 +107,23 @@
 			path = ParkZen;
 			sourceTree = "<group>";
 		};
+		7939696B1DB3125DD438E772 /* Pods */ = {
+			isa = PBXGroup;
+			children = (
+				612466084915D6706E87B3EE /* Pods-ParkZen.debug.xcconfig */,
+				9C8E617B0E37FF47DC63D454 /* Pods-ParkZen.release.xcconfig */,
+			);
+			path = Pods;
+			sourceTree = "<group>";
+		};
+		FC25F11F5DA3F8D0E38EC603 /* Frameworks */ = {
+			isa = PBXGroup;
+			children = (
+				DFE9358FE8A0B159EF37EA10 /* Pods_ParkZen.framework */,
+			);
+			name = Frameworks;
+			sourceTree = "<group>";
+		};
 /* End PBXGroup section */
 
 /* Begin PBXNativeTarget section */
@@ -98,9 +131,11 @@
 			isa = PBXNativeTarget;
 			buildConfigurationList = 567E1A082436D7F900825A3B /* Build configuration list for PBXNativeTarget "ParkZen" */;
 			buildPhases = (
+				C165A6822231E098D17D9A2E /* [CP] Check Pods Manifest.lock */,
 				567E19F02436D7F700825A3B /* Sources */,
 				567E19F12436D7F700825A3B /* Frameworks */,
 				567E19F22436D7F700825A3B /* Resources */,
+				EFC4F15FC5D6258343E65AA3 /* [CP] Embed Pods Frameworks */,
 			);
 			buildRules = (
 			);
@@ -150,12 +185,55 @@
 			buildActionMask = 2147483647;
 			files = (
 				567E1A042436D7F900825A3B /* LaunchScreen.storyboard in Resources */,
+				50A5719524B4F2B1008A66C9 /* GoogleService-Info.plist in Resources */,
 				567E1A012436D7F900825A3B /* Assets.xcassets in Resources */,
 				567E19FF2436D7F700825A3B /* Main.storyboard in Resources */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};
 /* End PBXResourcesBuildPhase section */
+
+/* Begin PBXShellScriptBuildPhase section */
+		C165A6822231E098D17D9A2E /* [CP] Check Pods Manifest.lock */ = {
+			isa = PBXShellScriptBuildPhase;
+			buildActionMask = 2147483647;
+			files = (
+			);
+			inputFileListPaths = (
+			);
+			inputPaths = (
+				"${PODS_PODFILE_DIR_PATH}/Podfile.lock",
+				"${PODS_ROOT}/Manifest.lock",
+			);
+			name = "[CP] Check Pods Manifest.lock";
+			outputFileListPaths = (
+			);
+			outputPaths = (
+				"$(DERIVED_FILE_DIR)/Pods-ParkZen-checkManifestLockResult.txt",
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+			shellPath = /bin/sh;
+			shellScript = "diff \"${PODS_PODFILE_DIR_PATH}/Podfile.lock\" \"${PODS_ROOT}/Manifest.lock\" > /dev/null\nif [ $? != 0 ] ; then\n    # print error to STDERR\n    echo \"error: The sandbox is not in sync with the Podfile.lock. Run 'pod install' or update your CocoaPods installation.\" >&2\n    exit 1\nfi\n# This output is used by Xcode 'outputs' to avoid re-running this script phase.\necho \"SUCCESS\" > \"${SCRIPT_OUTPUT_FILE_0}\"\n";
+			showEnvVarsInLog = 0;
+		};
+		EFC4F15FC5D6258343E65AA3 /* [CP] Embed Pods Frameworks */ = {
+			isa = PBXShellScriptBuildPhase;
+			buildActionMask = 2147483647;
+			files = (
+			);
+			inputFileListPaths = (
+				"${PODS_ROOT}/Target Support Files/Pods-ParkZen/Pods-ParkZen-frameworks-${CONFIGURATION}-input-files.xcfilelist",
+			);
+			name = "[CP] Embed Pods Frameworks";
+			outputFileListPaths = (
+				"${PODS_ROOT}/Target Support Files/Pods-ParkZen/Pods-ParkZen-frameworks-${CONFIGURATION}-output-files.xcfilelist",
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+			shellPath = /bin/sh;
+			shellScript = "\"${PODS_ROOT}/Target Support Files/Pods-ParkZen/Pods-ParkZen-frameworks.sh\"\n";
+			showEnvVarsInLog = 0;
+		};
+/* End PBXShellScriptBuildPhase section */
 
 /* Begin PBXSourcesBuildPhase section */
 		567E19F02436D7F700825A3B /* Sources */ = {
@@ -165,10 +243,12 @@
 				56EBC5F224ABB5C000D694B2 /* SumoAnnotation.swift in Sources */,
 				567E19FC2436D7F700825A3B /* ViewController.swift in Sources */,
 				567E19F82436D7F700825A3B /* AppDelegate.swift in Sources */,
+				50A5719924B64F9D008A66C9 /* SumoCoordinate.swift in Sources */,
 				567F3F2B24AFAD9500428A68 /* MainTabBarController.swift in Sources */,
 				567F3F2D24AFAFC200428A68 /* LoginViewController.swift in Sources */,
 				567E19FA2436D7F700825A3B /* SceneDelegate.swift in Sources */,
 				567F3F2F24B3AC7100428A68 /* ConnectedDevice.swift in Sources */,
+				50A5719724B4F3D6008A66C9 /* DatabaseDelegate.swift in Sources */,
 				56A8A7C12469D44400A88278 /* Utilities.swift in Sources */,
 				56A8A7BF2469CE9A00A88278 /* Geotification.swift in Sources */,
 			);
@@ -312,6 +392,7 @@
 		};
 		567E1A092436D7F900825A3B /* Debug */ = {
 			isa = XCBuildConfiguration;
+			baseConfigurationReference = 612466084915D6706E87B3EE /* Pods-ParkZen.debug.xcconfig */;
 			buildSettings = {
 				ASSETCATALOG_COMPILER_APPICON_NAME = AppIcon;
 				CODE_SIGN_STYLE = Automatic;
@@ -330,6 +411,7 @@
 		};
 		567E1A0A2436D7F900825A3B /* Release */ = {
 			isa = XCBuildConfiguration;
+			baseConfigurationReference = 9C8E617B0E37FF47DC63D454 /* Pods-ParkZen.release.xcconfig */;
 			buildSettings = {
 				ASSETCATALOG_COMPILER_APPICON_NAME = AppIcon;
 				CODE_SIGN_STYLE = Automatic;
