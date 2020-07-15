@@ -13,17 +13,16 @@ import MapKit
 class DatabaseDelegate {
     
     var ref: DatabaseReference!
-    let expTime = 1800.0
+    static let shared: DatabaseDelegate = DatabaseDelegate()
+    let expTime = 60.0 //experiation time in mintues
     var spotSet = Set<SumoCoordinate>()
     let scBuilder = SumoCoordinateBuilder()
-    let mapView: MKMapView
-    let ageInMinutes:(Double) -> Int = { timeCreated in
-        Int((Date().timeIntervalSince1970 - timeCreated)/60)
+    let ageInMinutes:(Double) -> Double = { timeCreated in
+        (Date().timeIntervalSince1970 - timeCreated)/60
     }
     
-    init(map: MKMapView) {
+    private init() {
         
-        mapView = map
         ref = Database.database().reference()
     }
     
@@ -32,7 +31,7 @@ class DatabaseDelegate {
         self.ref.childByAutoId().setValue(["latitude": location.latitude, "longitude": location.longitude, "TimeCreated": location.timeCreated])
     }
     
-    func read() {
+    func read(map: MKMapView) {
         
         self.ref.observeSingleEvent(of: .value, with: { (snapshot) in
             
@@ -44,20 +43,20 @@ class DatabaseDelegate {
                 
                 spotDict = snapshot.childSnapshot(forPath: key).value as! [String : Double]
                 
-                if(Date().timeIntervalSince1970 - spotDict["TimeCreated"]! > self.expTime){
+                spot = self.scBuilder
+                            .withLatitude(lat: spotDict["latitude"]!)
+                            .withLongitude(lon: spotDict["longitude"]!)
+                            .withTime(time: spotDict["TimeCreated"]!)
+                            .build()
+                
+                if (self.ageInMinutes(spotDict["TimeCreated"]!) > self.expTime) {
                     
                     self.ref.child(key).removeValue()
-                   
+                    self.spotSet.remove(spot)
     
-                } else {
-                    
-                    spot = self.scBuilder
-                        .withLatitude(lat: spotDict["latitude"]!)
-                        .withLongitude(lon: spotDict["longitude"]!)
-                        .withTime(time: spotDict["TimeCreated"]!)
-                        .build()
-                    
-                    self.draw(spot)
+                } else if(!self.spotSet.contains(spot)) {
+                          
+                    self.draw(spot, map: map)
                     self.spotSet.insert(spot)
                 }
             }
@@ -66,10 +65,9 @@ class DatabaseDelegate {
         
     }
     
-    func draw(_ sc: SumoCoordinate){
+    func draw(_ sc: SumoCoordinate, map: MKMapView){
         
         let pin: SumoAnnotation = SumoAnnotation(sc: sc, title: "\(ageInMinutes(sc.timeCreated)) minutes")
-        mapView.addAnnotation(pin)
-        
+        map.addAnnotation(pin)
     }
 }

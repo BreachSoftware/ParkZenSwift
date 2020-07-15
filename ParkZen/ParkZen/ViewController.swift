@@ -41,6 +41,8 @@ class ViewController: UIViewController {
     
     var backgroundTask: UIBackgroundTaskIdentifier = .invalid
     
+    let expTime = 60.0
+    
     // Struct for holding the previous activity's data.
     struct Activity {
         var id: String = "unknown"
@@ -201,18 +203,19 @@ class ViewController: UIViewController {
         
         mapView.showsUserLocation = true
         
-        let db = DatabaseDelegate(map: mapView)
+        
+        
         let loc1 = SumoCoordinate(lat: 30.412630, lon: -91.177604)
         let loc2 = SumoCoordinate(lat: 30.412884, lon: -91.179256)
         let loc3 = SumoCoordinate(lat: 30.413668, lon: -91.179143)
         let loc4 = SumoCoordinate(lat: 30.413024, lon: -91.174954)
         
-//        db.write(location: loc1)
-//        db.write(location: loc2)
-//        db.write(location: loc3)
-//        db.write(location: loc4)
+        DatabaseDelegate.shared.write(location: loc1)
+        DatabaseDelegate.shared.write(location: loc2)
+        DatabaseDelegate.shared.write(location: loc3)
+        DatabaseDelegate.shared.write(location: loc4)
         
-        db.read()
+        DatabaseDelegate.shared.read(map: mapView)
 
         
         // Turns bluetooth management on.
@@ -221,7 +224,7 @@ class ViewController: UIViewController {
         
         
         // Timer to increment the pins' timer once per minute.
-        _ = Timer.scheduledTimer(timeInterval: 60.0, target: self, selector: #selector(ViewController.incrementAnnotations), userInfo: nil, repeats: true)
+        _ = Timer.scheduledTimer(timeInterval: expTime, target: self, selector: #selector(ViewController.incrementAnnotations), userInfo: nil, repeats: true)
         
         
         // Used for car connection (because most cars do not use BLE)
@@ -570,6 +573,8 @@ class ViewController: UIViewController {
     // Increments the timer on all of the pins that are not the User Location.
     @objc func incrementAnnotations()
     {
+        DatabaseDelegate.shared.read(map: mapView)
+
         let annotations = mapView.annotations
         for annotation: MKAnnotation in annotations {
             
