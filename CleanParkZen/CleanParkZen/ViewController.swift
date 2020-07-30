@@ -10,6 +10,7 @@ import UIKit
 import MapKit
 import CoreLocation
 import AVFoundation
+import UserNotifications
 
 class ViewController: UIViewController {
     
@@ -41,9 +42,6 @@ class ViewController: UIViewController {
         mapView.delegate = self
         
         mapView.showsUserLocation = true
-        
-        
-        locationManager.startMonitoringSignificantLocationChanges()
         
         // Used for car connection (because most cars do not use BLE)
         let audioSession: AVAudioSession = AVAudioSession.sharedInstance()
