@@ -15,6 +15,7 @@
 		56D614A224D20E8E006BCD04 /* LaunchScreen.storyboard in Resources */ = {isa = PBXBuildFile; fileRef = 56D614A024D20E8E006BCD04 /* LaunchScreen.storyboard */; };
 		56D614AA24D210B3006BCD04 /* Geotification.swift in Sources */ = {isa = PBXBuildFile; fileRef = 56D614A924D210B3006BCD04 /* Geotification.swift */; };
 		56D614AC24D21A77006BCD04 /* SimulatedLocations.gpx in Resources */ = {isa = PBXBuildFile; fileRef = 56D614AB24D21A77006BCD04 /* SimulatedLocations.gpx */; };
+		56D614AE24D37E65006BCD04 /* example.wav in Resources */ = {isa = PBXBuildFile; fileRef = 56D614AD24D37E65006BCD04 /* example.wav */; };
 /* End PBXBuildFile section */
 
 /* Begin PBXFileReference section */
@@ -28,6 +29,7 @@
 		56D614A324D20E8E006BCD04 /* Info.plist */ = {isa = PBXFileReference; lastKnownFileType = text.plist.xml; path = Info.plist; sourceTree = "<group>"; };
 		56D614A924D210B3006BCD04 /* Geotification.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = Geotification.swift; sourceTree = "<group>"; };
 		56D614AB24D21A77006BCD04 /* SimulatedLocations.gpx */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = text.xml; path = SimulatedLocations.gpx; sourceTree = "<group>"; };
+		56D614AD24D37E65006BCD04 /* example.wav */ = {isa = PBXFileReference; lastKnownFileType = audio.wav; path = example.wav; sourceTree = "<group>"; };
 /* End PBXFileReference section */
 
 /* Begin PBXFrameworksBuildPhase section */
@@ -64,6 +66,7 @@
 				56D6149524D20E88006BCD04 /* AppDelegate.swift */,
 				56D6149724D20E88006BCD04 /* SceneDelegate.swift */,
 				56D6149924D20E88006BCD04 /* ViewController.swift */,
+				56D614AD24D37E65006BCD04 /* example.wav */,
 				56D6149B24D20E88006BCD04 /* Main.storyboard */,
 				56D6149E24D20E8E006BCD04 /* Assets.xcassets */,
 				56D614A024D20E8E006BCD04 /* LaunchScreen.storyboard */,
@@ -135,6 +138,7 @@
 				56D6149F24D20E8E006BCD04 /* Assets.xcassets in Resources */,
 				56D6149D24D20E88006BCD04 /* Main.storyboard in Resources */,
 				56D614AC24D21A77006BCD04 /* SimulatedLocations.gpx in Resources */,
+				56D614AE24D37E65006BCD04 /* example.wav in Resources */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};

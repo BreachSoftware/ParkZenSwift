@@ -14,11 +14,22 @@ import UserNotifications
 
 class ViewController: UIViewController {
     
+    
+    
+    
+    
     // MARK: - Properties
     @IBOutlet weak var mapView: MKMapView!
     
+    @IBOutlet weak var sliderLabel: UILabel!
+    
+    @IBOutlet weak var sliderBoi: UISlider!
+    
     var geotifications: [Geotification] = []
     var locationManager = CLLocationManager()
+    
+    var silentSound: AVAudioPlayer?
+    var audioSession: AVAudioSession?
     
     final let travelGeofenceIdentifier = "TRAVELGEO"
     
@@ -27,7 +38,11 @@ class ViewController: UIViewController {
         case isDisconnectLocation
         case isTravelGeofence
     }
-    public var locationReason: LocationReason = LocationReason.isNone
+    public var locationReason: LocationReason = LocationReason.isTravelGeofence
+    
+    
+    
+    
     
     // MARK: - viewDidLoad
     override func viewDidLoad() {
@@ -38,20 +53,23 @@ class ViewController: UIViewController {
         locationManager.requestWhenInUseAuthorization()
         
         locationManager.startMonitoringSignificantLocationChanges()
-        
+                
         mapView.delegate = self
         
         mapView.showsUserLocation = true
         
+        locationManager.requestLocation()
+        
         // Used for car connection (because most cars do not use BLE)
-        let audioSession: AVAudioSession = AVAudioSession.sharedInstance()
+        audioSession = AVAudioSession.sharedInstance()
         
         do {
-            try audioSession.setCategory(AVAudioSession.Category.playAndRecord, options: [.allowBluetooth, .allowBluetoothA2DP, .allowAirPlay,])
-            try audioSession.setActive(true)
+            try audioSession!.setCategory(AVAudioSession.Category.playback, mode: .default, options: [.mixWithOthers])
         } catch {
             fatalError("Audio session failure")
         }
+        
+        
         
         // Runs the function ViewController:handleRouteChange() whenever a new audio device is found to have connected.  This only works in the foreground or background, but not suspended.
         NotificationCenter.default.addObserver(self,
@@ -65,12 +83,33 @@ class ViewController: UIViewController {
                                                name: UIApplication.didEnterBackgroundNotification,
                                                object: nil)
         
+        let path = Bundle.main.path(forResource: "example.wav", ofType:nil)!
+        let url = URL(fileURLWithPath: path)
+        do {
+            silentSound = try AVAudioPlayer(contentsOf: url)
+            silentSound?.volume = 0
+            silentSound?.numberOfLoops = 10
+            try audioSession!.setActive(true)
+        }
+        catch {
+            print("Uh oh.")
+        }
         
     }
+    
+
+    @IBAction func sliderValueDidChange(_ sender: Any) {
+        sliderLabel.text = String((sender as! UISlider).value)
+    }
+    
     
     @objc func sendingToBackground() {
         locationReason = .isTravelGeofence
     }
+    
+    
+    
+    
     
     // MARK: - AV Handler
     // This is called whenever a new audio route (another device to play music on) is connected to the iPhone, called by the Observer in Initialization.
@@ -87,10 +126,8 @@ class ViewController: UIViewController {
                 print("New audio port: " + output.portName)
                 print("Port type: " + output.portType.rawValue)
                 // If the output is a HFP (Hands Free Profile), prompt the user to select it as a new car.
-                if output.portType == .bluetoothHFP {
-                    DispatchQueue.main.async {
-                        notify(withMessage: "Possible new car detected. Would you like to set this as your car?")
-                    }
+                DispatchQueue.main.async {
+                    notify(withMessage: "Possible new car detected. Would you like to set this as your car?")
                 }
             }
         case .oldDeviceUnavailable:
@@ -109,8 +146,24 @@ class ViewController: UIViewController {
         }
     }
     
+    func playSilentAudio() {
+        while(true) {
+            print("playSilentAudio()")
+            silentSound?.play()
+            sleep(1)
+        }
+    }
+    
+    
+    
+
+    // MARK: - Travel and Geofence
     func startTravelGeofencing(location: CLLocation) {
-        let radius = abs(location.speed * 20)
+        print("startTravelGeofencing()")
+        let radius = abs(location.speed * Double(sliderBoi.value))
+        if location.speed < 5 {
+            playSilentAudio()
+        }
         
         let geotification = Geotification(coordinate: location.coordinate, radius: radius, identifier: travelGeofenceIdentifier, note: "", eventType: .onExit)
         add(geotification)
@@ -163,6 +216,10 @@ class ViewController: UIViewController {
         }
     }
     
+    
+    
+    
+    
     // MARK: Map overlay functions
     func addRadiusOverlay(forGeotification geotification: Geotification) {
         mapView?.addOverlay(MKCircle(center: geotification.coordinate, radius: geotification.radius))
@@ -181,6 +238,11 @@ class ViewController: UIViewController {
         }
     }
     
+    
+    
+    
+    
+    
     // MARK: Loading and saving functions
     func loadAllGeotifications() {
         geotifications.removeAll()
@@ -198,6 +260,10 @@ class ViewController: UIViewController {
     }
     
 }
+
+
+
+
 
 
 // MARK: - MapView Delegate
@@ -221,7 +287,6 @@ extension ViewController: MKMapViewDelegate {
         return nil
     }
     
-    
     func mapView(_ mapView: MKMapView, rendererFor overlay: MKOverlay) -> MKOverlayRenderer {
         if overlay is MKCircle {
             let circleRenderer = MKCircleRenderer(overlay: overlay)
@@ -239,10 +304,10 @@ extension ViewController: MKMapViewDelegate {
         remove(geotification)
         saveAllGeotifications()
     }
-    
-    
-    
 }
+
+
+
 
 
 // MARK: - Location Manager Delegate
@@ -253,13 +318,14 @@ extension ViewController: CLLocationManagerDelegate {
     }
     
     func locationManager(_ manager: CLLocationManager, didExitRegion region: CLRegion) {
+        print("locationManager(DidExitRegion)")
         if region is CLCircularRegion {
             if region.identifier == travelGeofenceIdentifier {
                 for geo in geotifications {
                     if geo.identifier == region.identifier {
                         stopMonitoring(geotification: geo)
                         remove(geo)
-                        geotifications.removeAll(where: {$0.identifier == geo.identifier})
+                        geotifications.removeAll(where: {$0 == geo})
                     }
                 }
                 saveAllGeotifications()
@@ -284,6 +350,9 @@ extension ViewController: CLLocationManagerDelegate {
         print("Location Manager failed with the following error: \(error)")
     }
 }
+
+
+
 
 
 func notify(withMessage msg: String) {
